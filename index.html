@@ -5,7 +5,7 @@ import { getFirestore, collection, doc, setDoc, onSnapshot, updateDoc, arrayUnio
 import { 
   ShieldCheck, Video, VideoOff, Mic, MicOff, Clock, AlertTriangle, 
   Lock, CreditCard, PhoneCall, CheckCircle2, ChevronRight, Smartphone,
-  Calendar, PenTool, MessageSquare, Send
+  Calendar, PenTool, MessageSquare, Send, Eraser, Download, Trash2, User, PlayCircle
 } from 'lucide-react';
 
 // ==========================================
@@ -23,12 +23,138 @@ try {
   console.error("שגיאה באתחול פיירבייס:", error);
 }
 
-// נתיבים למסד הנתונים (על פי חוקי המערכת)
 const getExpertsPath = () => collection(db, 'artifacts', appId, 'public', 'data', 'experts');
 const getSessionsPath = () => collection(db, 'artifacts', appId, 'public', 'data', 'sessions');
 
 // ==========================================
-// 2. קומפוננטת המעטפת לאימות משתמשים (Auth)
+// 2. רכיב הלוח הלבן (Collaborative Whiteboard Widget)
+// ==========================================
+const WhiteboardWidget = () => {
+  const canvasRef = useRef(null);
+  const contextRef = useRef(null);
+  const wrapperRef = useRef(null);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [color, setColor] = useState('#000000');
+  const [lineWidth, setLineWidth] = useState(3);
+  const [tool, setTool] = useState('pen');
+
+  useEffect(() => {
+    const initCanvas = () => {
+      const canvas = canvasRef.current;
+      const wrapper = wrapperRef.current;
+      if (!canvas || !wrapper) return;
+
+      const dpr = window.devicePixelRatio || 1;
+      const rect = wrapper.getBoundingClientRect();
+      
+      canvas.width = rect.width * dpr;
+      canvas.height = 400 * dpr; // גובה קבוע ללוח
+      canvas.style.width = `${rect.width}px`;
+      canvas.style.height = `400px`;
+
+      const context = canvas.getContext('2d');
+      context.scale(dpr, dpr);
+      context.lineCap = 'round';
+      context.lineJoin = 'round';
+      context.fillStyle = '#ffffff';
+      context.fillRect(0, 0, canvas.width, canvas.height);
+
+      contextRef.current = context;
+    };
+
+    // Timeout קטן כדי להבטיח שה-DOM סיים להתרנדר בתוך הטאב
+    setTimeout(initCanvas, 100);
+    window.addEventListener('resize', initCanvas);
+    return () => window.removeEventListener('resize', initCanvas);
+  }, []);
+
+  useEffect(() => {
+    if (contextRef.current) {
+      if (tool === 'eraser') {
+        contextRef.current.strokeStyle = '#ffffff';
+        contextRef.current.lineWidth = lineWidth * 4;
+      } else {
+        contextRef.current.strokeStyle = color;
+        contextRef.current.lineWidth = lineWidth;
+      }
+    }
+  }, [color, lineWidth, tool]);
+
+  const startDrawing = ({ nativeEvent }) => {
+    const { offsetX, offsetY } = getCoordinates(nativeEvent);
+    contextRef.current.beginPath();
+    contextRef.current.moveTo(offsetX, offsetY);
+    setIsDrawing(true);
+  };
+
+  const finishDrawing = () => {
+    contextRef.current.closePath();
+    setIsDrawing(false);
+  };
+
+  const draw = ({ nativeEvent }) => {
+    if (!isDrawing) return;
+    const { offsetX, offsetY } = getCoordinates(nativeEvent);
+    contextRef.current.lineTo(offsetX, offsetY);
+    contextRef.current.stroke();
+  };
+
+  const getCoordinates = (event) => {
+    if (event.touches && event.touches.length > 0) {
+      const rect = canvasRef.current.getBoundingClientRect();
+      return {
+        offsetX: event.touches[0].clientX - rect.left,
+        offsetY: event.touches[0].clientY - rect.top
+      };
+    }
+    return {
+      offsetX: event.nativeEvent ? event.nativeEvent.offsetX : event.offsetX,
+      offsetY: event.nativeEvent ? event.nativeEvent.offsetY : event.offsetY
+    };
+  };
+
+  const clearCanvas = () => {
+    const canvas = canvasRef.current;
+    const context = canvas.getContext('2d');
+    context.fillStyle = '#ffffff';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+  };
+
+  return (
+    <div className="flex flex-col h-full bg-white rounded-xl border border-gray-200 overflow-hidden" ref={wrapperRef}>
+      <div className="bg-gray-50 border-b border-gray-200 p-2 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          {['#000000', '#EF4444', '#3B82F6', '#10B981'].map(c => (
+            <button key={c} onClick={() => { setColor(c); setTool('pen'); }} className={`w-6 h-6 rounded-full border-2 ${color === c && tool === 'pen' ? 'border-gray-800' : 'border-transparent'}`} style={{ backgroundColor: c }} />
+          ))}
+          <div className="w-px h-6 bg-gray-300 mx-1"></div>
+          <button onClick={() => setTool('pen')} className={`p-1.5 rounded-md ${tool === 'pen' ? 'bg-teal-100 text-teal-700' : 'text-gray-600'}`}><PenTool className="w-4 h-4" /></button>
+          <button onClick={() => setTool('eraser')} className={`p-1.5 rounded-md ${tool === 'eraser' ? 'bg-gray-200 text-gray-800' : 'text-gray-600'}`}><Eraser className="w-4 h-4" /></button>
+        </div>
+        <button onClick={clearCanvas} className="p-1.5 text-red-500 hover:bg-red-50 rounded-md"><Trash2 className="w-4 h-4" /></button>
+      </div>
+      <div className="flex-1 relative cursor-crosshair touch-none bg-white">
+        <canvas
+          ref={canvasRef}
+          onMouseDown={startDrawing}
+          onMouseUp={finishDrawing}
+          onMouseMove={draw}
+          onMouseLeave={finishDrawing}
+          onTouchStart={startDrawing}
+          onTouchEnd={finishDrawing}
+          onTouchMove={draw}
+          className="w-full h-full"
+        />
+        <div className="absolute inset-0 pointer-events-none flex items-center justify-center opacity-5 select-none overflow-hidden">
+          <span className="text-4xl font-black text-gray-400 rotate-[-30deg]">VeriSess</span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ==========================================
+// 3. קומפוננטת המעטפת (Auth Wrapper)
 // ==========================================
 export default function AuthWrapper() {
   const [user, setUser] = useState(null);
@@ -42,17 +168,13 @@ export default function AuthWrapper() {
         } else {
           await signInAnonymously(auth);
         }
-      } catch (error) {
-        console.error("שגיאת התחברות:", error);
-      }
+      } catch (error) { console.error("שגיאת התחברות:", error); }
     };
     initAuth();
-
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       setLoading(false);
     });
-
     return () => unsubscribe();
   }, []);
 
@@ -60,7 +182,7 @@ export default function AuthWrapper() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50" dir="rtl">
         <div className="w-16 h-16 border-4 border-teal-200 border-t-teal-500 rounded-full animate-spin mb-4"></div>
-        <h2 className="text-xl font-bold text-blue-900">מתחבר לשרתי VeriSess המאובטחים...</h2>
+        <h2 className="text-xl font-bold text-blue-900">טוען את קליניקת VeriSess...</h2>
       </div>
     );
   }
@@ -69,16 +191,15 @@ export default function AuthWrapper() {
 }
 
 // ==========================================
-// 3. האפליקציה המרכזית
+// 4. האפליקציה המרכזית וניהול זרימת המסכים
 // ==========================================
 function VeriSessApp({ user }) {
-  const [currentView, setCurrentView] = useState('provider'); // 'client', 'provider', 'checkout', 'videoRoom'
+  const [currentView, setCurrentView] = useState('client'); 
   const [experts, setExperts] = useState([]);
   const [activeSessions, setActiveSessions] = useState([]);
   const [currentSessionId, setCurrentSessionId] = useState(null);
   const [selectedExpert, setSelectedExpert] = useState(null);
 
-  // הסטייט של המטפל הנוכחי (המשתמש שלנו)
   const [isProviderOnline, setIsProviderOnline] = useState(false);
   const providerProfile = {
     name: 'ד"ר יעל שרת (אני)',
@@ -87,95 +208,69 @@ function VeriSessApp({ user }) {
     img: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?ixlib=rb-4.0.3&w=150&q=80'
   };
 
-  // משיכת נתונים בזמן אמת (Real-time DB Listeners)
   useEffect(() => {
     if (!user) return;
-
-    // 1. האזנה לכל המומחים הזמינים (לממשק הלקוח)
     const unsubscribeExperts = onSnapshot(getExpertsPath(), (snapshot) => {
       const expertsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      // סינון (בזיכרון) רק למומחים המחוברים כרגע
       setExperts(expertsData.filter(exp => exp.isOnline));
-    }, (error) => console.error("שגיאה במשיכת מומחים:", error));
-
-    // 2. האזנה לסשנים פעילים (לממשק המטפל)
+    });
     const unsubscribeSessions = onSnapshot(getSessionsPath(), (snapshot) => {
       const sessionsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      // נסנן רק סשנים ששייכים למטפל הזה, ושהם פעילים
       const mySessions = sessionsData.filter(s => s.providerId === user.uid && s.status === 'active');
       setActiveSessions(mySessions);
-    }, (error) => console.error("שגיאה במשיכת סשנים:", error));
-
-    return () => {
-      unsubscribeExperts();
-      unsubscribeSessions();
-    };
+    });
+    return () => { unsubscribeExperts(); unsubscribeSessions(); };
   }, [user]);
 
-  // פעולה: מטפל משנה סטטוס זמינות (כותב לענן)
   const toggleProviderStatus = async () => {
     if (!user) return;
     const newStatus = !isProviderOnline;
     setIsProviderOnline(newStatus);
-    
     const expertRef = doc(db, 'artifacts', appId, 'public', 'data', 'experts', user.uid);
-    try {
-      await setDoc(expertRef, {
-        ...providerProfile,
-        isOnline: newStatus,
-        lastUpdated: new Date().toISOString()
-      }, { merge: true });
-    } catch (error) {
-      console.error("שגיאה בעדכון סטטוס:", error);
-    }
+    await setDoc(expertRef, { ...providerProfile, isOnline: newStatus, lastUpdated: new Date().toISOString() }, { merge: true });
   };
 
-  // פעולה: לקוח מזמין סשן (כותב לענן)
   const createSession = async () => {
     if (!user || !selectedExpert) return;
-    
-    // יצירת מזהה ייחודי לסשן
     const sessionId = `sess_${Date.now()}`;
     const sessionRef = doc(db, 'artifacts', appId, 'public', 'data', 'sessions', sessionId);
-    
-    try {
-      await setDoc(sessionRef, {
-        providerId: selectedExpert.id,
-        clientId: user.uid,
-        status: 'active',
-        messages: [],
-        createdAt: new Date().toISOString()
-      });
-      setCurrentSessionId(sessionId);
-      setCurrentView('videoRoom');
-    } catch (error) {
-      console.error("שגיאה ביצירת סשן:", error);
-    }
-  };
-
-  // פעולה: מטפל מצטרף לסשן קיים
-  const joinSession = (sessionId) => {
+    await setDoc(sessionRef, {
+      providerId: selectedExpert.id,
+      clientId: user.uid,
+      status: 'active',
+      messages: [],
+      createdAt: new Date().toISOString()
+    });
     setCurrentSessionId(sessionId);
     setCurrentView('videoRoom');
   };
 
-  // --- ממשק 1: לקוח - חיפוש SOS ---
+  // --- Views Components ---
+  
   const ClientView = () => (
     <div className="max-w-xl mx-auto mt-10 bg-white rounded-2xl shadow-sm border border-gray-100 p-6" dir="rtl">
-      <h2 className="text-2xl font-bold mb-1 text-blue-900">SOS: מומחים זמינים עכשיו</h2>
-      <p className="text-gray-500 mb-6">רשימה זו מתעדכנת בזמן אמת מהענן.</p>
+      <div className="flex justify-between items-end mb-6">
+        <div>
+          <h2 className="text-2xl font-bold mb-1 text-blue-900">מצא מומחה עכשיו (SOS)</h2>
+          <p className="text-gray-500 text-sm">הרשימה מתעדכנת בזמן אמת מהענן.</p>
+        </div>
+        <div className="bg-red-50 text-red-600 px-3 py-1 rounded-full text-xs font-bold animate-pulse flex items-center gap-1">
+          <PlayCircle className="w-4 h-4"/> שידור חי
+        </div>
+      </div>
       
       <div className="space-y-4">
         {experts.length === 0 ? (
-          <div className="text-center p-8 bg-gray-50 rounded-xl border border-dashed border-gray-300">
-            <p className="text-gray-500">אין כרגע מומחים זמינים ל-SOS.<br/>נסה לעבור ל"אזור מטפל" ולהדליק את הזמינות שלך!</p>
+          <div className="text-center p-10 bg-gray-50 rounded-xl border border-dashed border-gray-300">
+            <p className="text-gray-500 mb-2">אין כרגע מומחים זמינים.</p>
+            <button onClick={() => setCurrentView('provider')} className="text-teal-600 underline font-medium">עבור לממשק מטפל והדלק זמינות כדי לבדוק</button>
           </div>
         ) : (
           experts.map((expert) => (
             <div key={expert.id} className="flex items-center p-4 border border-gray-200 rounded-xl hover:border-teal-500 hover:shadow-md transition-all cursor-pointer bg-white" onClick={() => { setSelectedExpert(expert); setCurrentView('checkout'); }}>
               <div className="relative">
                 <img src={expert.img} alt={expert.name} className="w-16 h-16 rounded-full object-cover" />
-                <div className="absolute bottom-0 right-0 w-4 h-4 bg-green-500 border-2 border-white rounded-full shadow-sm"></div>
+                <div className="absolute bottom-0 right-0 w-4 h-4 bg-green-500 border-2 border-white rounded-full"></div>
               </div>
               <div className="mr-4 flex-1">
                 <h4 className="font-bold text-gray-800 text-lg">{expert.name}</h4>
@@ -184,7 +279,7 @@ function VeriSessApp({ user }) {
               <div className="text-left flex flex-col items-end">
                 <span className="font-bold text-xl text-teal-600">₪{expert.rate}</span>
                 <button className="mt-1 bg-teal-50 text-teal-700 px-3 py-1 rounded-full text-sm font-semibold flex items-center gap-1">
-                  הזמן עכשיו <ChevronRight className="w-4 h-4" />
+                  הזמן <ChevronRight className="w-4 h-4" />
                 </button>
               </div>
             </div>
@@ -194,7 +289,6 @@ function VeriSessApp({ user }) {
     </div>
   );
 
-  // --- ממשק 2: מטפל - דאשבורד ---
   const ProviderDashboard = () => (
     <div className="max-w-4xl mx-auto mt-8 grid grid-cols-1 md:grid-cols-3 gap-6" dir="rtl">
       <div className="md:col-span-2 space-y-6">
@@ -204,13 +298,13 @@ function VeriSessApp({ user }) {
             <div className="text-4xl font-bold text-gray-900">₪4,250.00</div>
           </div>
           <div className="flex flex-col items-end">
-            <span className="text-sm text-gray-500 mb-2">מצב זמינות (Live DB)</span>
+            <span className="text-sm text-gray-500 mb-2">זמינות ברשת (SOS)</span>
             <label className="relative inline-flex items-center cursor-pointer">
               <input type="checkbox" className="sr-only peer" checked={isProviderOnline} onChange={toggleProviderStatus} />
               <div className="w-14 h-7 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:right-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-teal-500"></div>
             </label>
             <span className={`text-xs mt-1 font-medium ${isProviderOnline ? 'text-teal-600' : 'text-gray-400'}`}>
-              {isProviderOnline ? 'מחובר (גלוי ללקוחות)' : 'לא זמין כעת'}
+              {isProviderOnline ? 'מחובר וממתין' : 'לא זמין כעת'}
             </span>
           </div>
         </div>
@@ -219,28 +313,23 @@ function VeriSessApp({ user }) {
           <div className="p-4 border-b border-gray-100 bg-gray-50">
             <h3 className="font-bold text-gray-700 flex items-center gap-2">
               <Calendar className="w-5 h-5 text-gray-400" />
-              קריאות SOS / סשנים פעילים ({activeSessions.length})
+              קריאות SOS / סשנים פעילים
             </h3>
           </div>
           <div className="divide-y divide-gray-100">
             {activeSessions.length === 0 ? (
-              <div className="p-8 text-center text-gray-500">אין קריאות פעילות. הדלק זמינות כדי לקבל לקוחות.</div>
+              <div className="p-8 text-center text-gray-500">אין קריאות פעילות כרגע.</div>
             ) : (
               activeSessions.map((session) => (
                 <div key={session.id} className="p-4 flex justify-between items-center bg-teal-50/30">
                   <div className="flex items-center gap-4">
-                    <div className="bg-red-100 text-red-700 font-bold px-3 py-2 rounded-lg text-center animate-pulse">
-                      SOS
-                    </div>
+                    <div className="bg-red-100 text-red-700 font-bold px-3 py-2 rounded-lg text-center animate-pulse">SOS</div>
                     <div>
                       <h4 className="font-bold text-gray-800">לקוח ממתין בחדר!</h4>
-                      <p className="text-sm text-gray-500">מזהה פגישה: {session.id.substring(0, 8)}...</p>
+                      <p className="text-sm text-gray-500">מזהה: {session.id.substring(0, 8)}...</p>
                     </div>
                   </div>
-                  <button 
-                    onClick={() => joinSession(session.id)}
-                    className="bg-teal-500 text-white px-6 py-2 rounded-lg text-sm font-bold hover:bg-teal-600 transition-colors shadow-md"
-                  >
+                  <button onClick={() => { setCurrentSessionId(session.id); setCurrentView('videoRoom'); }} className="bg-teal-500 text-white px-6 py-2 rounded-lg text-sm font-bold hover:bg-teal-600 transition-colors shadow-md">
                     היכנס לחדר
                   </button>
                 </div>
@@ -250,40 +339,49 @@ function VeriSessApp({ user }) {
         </div>
       </div>
       <div className="space-y-6">
-        <div className="bg-blue-900 p-6 rounded-xl shadow-sm text-white">
-          <ShieldCheck className="w-8 h-8 text-teal-400 mb-3" />
-          <h3 className="font-bold text-lg mb-2">עדכוני מערכת VeriSess</h3>
-          <p className="text-sm text-blue-200">המערכת מחוברת למסד הנתונים בענן. מצב ה-SOS שלך מסונכרן בזמן אמת לכל הלקוחות.</p>
+        <div className="bg-blue-900 p-6 rounded-xl shadow-sm text-white relative overflow-hidden">
+          <div className="absolute -right-10 -top-10 opacity-10"><ShieldCheck className="w-40 h-40"/></div>
+          <ShieldCheck className="w-8 h-8 text-teal-400 mb-3 relative z-10" />
+          <h3 className="font-bold text-lg mb-2 relative z-10">הפרופיל שלך מוגן</h3>
+          <p className="text-sm text-blue-200 relative z-10">כל השיחות מנוטרות ע"י ה-AI שלנו למניעת הטרדות ועקיפת הפלטפורמה.</p>
         </div>
       </div>
     </div>
   );
 
-  // --- ממשק 3: תשלום מקוצר ---
   const CheckoutView = () => (
-    <div className="max-w-md mx-auto mt-10 bg-white rounded-2xl shadow-lg border border-gray-100 p-6 text-center" dir="rtl">
-      <Lock className="w-12 h-12 text-teal-500 mx-auto mb-4" />
-      <h2 className="text-xl font-bold text-gray-800 mb-2">אישור סליקה ויצירת קשר</h2>
-      <p className="text-gray-500 mb-6">תשלום מאובטח ע"י Stripe. הסכום: ₪{selectedExpert?.rate}</p>
-      <button 
-        onClick={createSession}
-        className="w-full bg-teal-500 hover:bg-teal-600 text-white py-4 rounded-xl font-bold text-lg shadow-md transition-all flex justify-center items-center gap-2"
-      >
-        <CheckCircle2 className="w-5 h-5" />
-        אשר והיכנס לחדר הטיפול
-      </button>
-      <button onClick={() => setCurrentView('client')} className="mt-4 text-gray-400 hover:text-gray-600">ביטול</button>
+    <div className="max-w-md mx-auto mt-10 bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden" dir="rtl">
+      <div className="bg-gray-50 p-6 border-b border-gray-200 text-center relative">
+        <button onClick={() => setCurrentView('client')} className="absolute right-4 top-4 text-gray-400">חזור</button>
+        <Lock className="w-8 h-8 text-green-500 mx-auto mb-2" />
+        <h2 className="text-xl font-bold text-gray-800">תשלום מאובטח</h2>
+      </div>
+      <div className="p-6">
+        <div className="flex justify-between items-center mb-6 bg-blue-50 p-4 rounded-xl">
+          <div className="flex items-center gap-3">
+            <img src={selectedExpert?.img} alt="" className="w-10 h-10 rounded-full" />
+            <div>
+              <div className="font-bold text-sm">{selectedExpert?.name}</div>
+              <div className="text-xs text-gray-500">שיחת ייעוץ (עד 45 דק')</div>
+            </div>
+          </div>
+          <div className="font-bold text-lg text-blue-900">₪{selectedExpert?.rate}</div>
+        </div>
+        <button onClick={createSession} className="w-full bg-teal-500 hover:bg-teal-600 text-white py-4 rounded-xl font-bold text-lg shadow-md transition-all flex justify-center items-center gap-2">
+          <CreditCard className="w-5 h-5" /> אשר והיכנס לחדר (חיוב ע"י Stripe)
+        </button>
+      </div>
     </div>
   );
 
-  // --- ממשק 4: חדר וידאו (עם צ'אט מסונכרן בזמן אמת) ---
+  // --- חדר הווידאו המלא (Video Room + Tabs) ---
   const VideoRoomView = ({ sessionId }) => {
     const [messages, setMessages] = useState([]);
     const [newMessage, setNewMessage] = useState('');
+    const [activeTab, setActiveTab] = useState('chat'); // 'chat', 'whiteboard', 'notes'
     const localVideoRef = useRef(null);
     const [localStream, setLocalStream] = useState(null);
 
-    // התחברות למצלמה פיזית
     useEffect(() => {
       const initCamera = async () => {
         try {
@@ -293,45 +391,29 @@ function VeriSessApp({ user }) {
         } catch (err) { console.error("שגיאת מצלמה:", err); }
       };
       initCamera();
-      return () => {
-        if (localStream) localStream.getTracks().forEach(track => track.stop());
-      };
+      return () => { if (localStream) localStream.getTracks().forEach(track => track.stop()); };
     }, []);
 
-    // האזנה להודעות/פעולות מהענן בזמן אמת
     useEffect(() => {
       if (!sessionId) return;
       const sessionRef = doc(db, 'artifacts', appId, 'public', 'data', 'sessions', sessionId);
       const unsubscribe = onSnapshot(sessionRef, (docSnap) => {
-        if (docSnap.exists()) {
-          setMessages(docSnap.data().messages || []);
-        }
+        if (docSnap.exists()) setMessages(docSnap.data().messages || []);
       });
       return () => unsubscribe();
     }, [sessionId]);
 
-    // שליחת הודעה לענן
     const sendMessage = async (e) => {
       e.preventDefault();
       if (!newMessage.trim() || !sessionId) return;
-      
       const sessionRef = doc(db, 'artifacts', appId, 'public', 'data', 'sessions', sessionId);
-      try {
-        await updateDoc(sessionRef, {
-          messages: arrayUnion({
-            senderId: user.uid,
-            text: newMessage,
-            timestamp: new Date().toISOString()
-          })
-        });
-        setNewMessage('');
-      } catch (error) {
-        console.error("שגיאה בשליחת הודעה:", error);
-      }
+      await updateDoc(sessionRef, {
+        messages: arrayUnion({ senderId: user.uid, text: newMessage, timestamp: new Date().toISOString() })
+      });
+      setNewMessage('');
     };
 
     const handleEndSession = async () => {
-      // עדכון הסטטוס ל"הסתיים" בענן
       if (sessionId) {
         const sessionRef = doc(db, 'artifacts', appId, 'public', 'data', 'sessions', sessionId);
         await updateDoc(sessionRef, { status: 'ended' });
@@ -341,58 +423,89 @@ function VeriSessApp({ user }) {
     };
 
     return (
-      <div className="max-w-6xl mx-auto mt-4 bg-gray-900 rounded-2xl overflow-hidden shadow-2xl h-[80vh] flex relative" dir="rtl">
-        {/* אזור הוידאו המרכזי */}
+      <div className="max-w-7xl mx-auto mt-4 bg-gray-900 rounded-2xl overflow-hidden shadow-2xl h-[85vh] flex relative border border-gray-800" dir="rtl">
+        {/* אזור הוידאו المרכזי */}
         <div className="flex-1 relative bg-black flex items-center justify-center">
-          <img src="https://images.unsplash.com/photo-1559839734-2b71ea197ec2?ixlib=rb-4.0.3&w=1000&q=80" alt="Remote" className="absolute inset-0 w-full h-full object-cover opacity-60" />
+          <img src={selectedExpert?.img || "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?ixlib=rb-4.0.3&w=1000&q=80"} alt="Remote" className="absolute inset-0 w-full h-full object-cover opacity-60" />
           
-          <div className="absolute bottom-24 left-6 w-48 h-32 bg-gray-800 rounded-xl overflow-hidden border-2 border-gray-700 z-20">
+          <div className="absolute top-6 left-6 bg-black/60 text-white px-4 py-2 rounded-lg backdrop-blur-sm z-10 flex items-center gap-2">
+            <Clock className="w-4 h-4 text-teal-400" /> 44:59
+          </div>
+
+          <div className="absolute bottom-24 left-6 w-48 h-32 bg-gray-800 rounded-xl overflow-hidden border-2 border-gray-700 z-20 shadow-xl">
             <video ref={localVideoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
           </div>
 
           <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-gray-900/90 backdrop-blur-md px-6 py-3 rounded-full flex gap-4 z-20">
-            <button onClick={handleEndSession} className="p-3 bg-red-600 hover:bg-red-700 rounded-full text-white transition-colors flex items-center gap-2 font-bold px-6">
-               <PhoneCall className="w-5 h-5 transform rotate-[135deg]" /> סיום סשן
+            <button className="p-3 bg-gray-700 hover:bg-gray-600 rounded-full text-white transition-colors"><Mic className="w-5 h-5" /></button>
+            <button className="p-3 bg-gray-700 hover:bg-gray-600 rounded-full text-white transition-colors"><Video className="w-5 h-5" /></button>
+            <button onClick={handleEndSession} className="p-3 bg-red-600 hover:bg-red-700 rounded-full text-white font-bold px-6 flex items-center gap-2">
+               <PhoneCall className="w-5 h-5 transform rotate-[135deg]" /> סיום
             </button>
           </div>
         </div>
 
-        {/* פאנל ימני: לוח פעולות וצ'אט מסונכרן ענן */}
-        <div className="w-80 bg-white flex flex-col z-20 border-l border-gray-200">
-          <div className="p-4 bg-blue-900 text-white flex items-center justify-between">
-            <span className="font-bold flex items-center gap-2">
-              <ShieldCheck className="w-5 h-5 text-teal-400" /> מרחב פעולות מסונכרן
-            </span>
+        {/* פאנל ימני: ווידג'טים חכמים (Tabs) */}
+        <div className="w-96 bg-gray-50 flex flex-col z-20 border-l border-gray-200">
+          
+          {/* ניווט הטאבים */}
+          <div className="flex bg-white border-b border-gray-200 p-2 gap-1">
+            <button onClick={() => setActiveTab('chat')} className={`flex-1 py-2 text-sm font-bold rounded-lg transition-colors flex items-center justify-center gap-2 ${activeTab === 'chat' ? 'bg-teal-50 text-teal-700' : 'text-gray-500 hover:bg-gray-50'}`}>
+              <MessageSquare className="w-4 h-4" /> צ'אט
+            </button>
+            <button onClick={() => setActiveTab('whiteboard')} className={`flex-1 py-2 text-sm font-bold rounded-lg transition-colors flex items-center justify-center gap-2 ${activeTab === 'whiteboard' ? 'bg-teal-50 text-teal-700' : 'text-gray-500 hover:bg-gray-50'}`}>
+              <PenTool className="w-4 h-4" /> לוח משותף
+            </button>
+            <button onClick={() => setActiveTab('notes')} className={`flex-1 py-2 text-sm font-bold rounded-lg transition-colors flex items-center justify-center gap-2 ${activeTab === 'notes' ? 'bg-teal-50 text-teal-700' : 'text-gray-500 hover:bg-gray-50'}`}>
+              <ShieldCheck className="w-4 h-4" /> הערות חסויות
+            </button>
           </div>
 
-          <div className="flex-1 p-4 bg-gray-50 flex flex-col overflow-hidden">
-            <div className="text-xs text-center text-gray-400 mb-4 bg-gray-200 rounded-full py-1">התקשורת מוצפנת ומסונכרנת בענן</div>
+          {/* תוכן הטאבים */}
+          <div className="flex-1 overflow-hidden p-3 bg-gray-50">
             
-            <div className="flex-1 overflow-y-auto space-y-3 mb-4 pr-1">
-              {messages.map((msg, idx) => {
-                const isMe = msg.senderId === user.uid;
-                return (
-                  <div key={idx} className={`flex flex-col ${isMe ? 'items-start' : 'items-end'}`}>
-                    <div className={`px-4 py-2 rounded-2xl max-w-[90%] text-sm ${isMe ? 'bg-teal-500 text-white rounded-tr-none' : 'bg-white border border-gray-200 text-gray-800 rounded-tl-none'}`}>
-                      {msg.text}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+            {/* טאב צ'אט */}
+            {activeTab === 'chat' && (
+              <div className="h-full flex flex-col">
+                <div className="flex-1 overflow-y-auto space-y-3 mb-4 pr-1">
+                  {messages.map((msg, idx) => {
+                    const isMe = msg.senderId === user.uid;
+                    return (
+                      <div key={idx} className={`flex flex-col ${isMe ? 'items-start' : 'items-end'}`}>
+                        <div className={`px-4 py-2 rounded-2xl max-w-[90%] text-sm ${isMe ? 'bg-teal-500 text-white rounded-tr-none' : 'bg-white border border-gray-200 text-gray-800 rounded-tl-none shadow-sm'}`}>
+                          {msg.text}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <form onSubmit={sendMessage} className="flex gap-2 bg-white p-1 rounded-full border border-gray-200 shadow-sm">
+                  <input type="text" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} placeholder="הקלד הודעה..." className="flex-1 bg-transparent px-4 py-2 text-sm focus:outline-none" />
+                  <button type="submit" className="bg-teal-500 text-white p-2 rounded-full hover:bg-teal-600"><Send className="w-4 h-4" /></button>
+                </form>
+              </div>
+            )}
 
-            <form onSubmit={sendMessage} className="flex gap-2">
-              <input 
-                type="text" 
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                placeholder="הקלד הודעה..." 
-                className="flex-1 bg-white border border-gray-300 rounded-full px-4 py-2 text-sm focus:outline-none focus:border-teal-500"
-              />
-              <button type="submit" className="bg-teal-500 text-white p-2 rounded-full hover:bg-teal-600">
-                <Send className="w-5 h-5" />
-              </button>
-            </form>
+            {/* טאב לוח לבן (שילוב הרכיב שבנינו) */}
+            {activeTab === 'whiteboard' && (
+              <div className="h-full">
+                <WhiteboardWidget />
+              </div>
+            )}
+
+            {/* טאב הערות חסויות */}
+            {activeTab === 'notes' && (
+              <div className="h-full flex flex-col gap-4">
+                <div className="bg-yellow-50 border border-yellow-200 p-3 rounded-lg text-sm text-yellow-800">
+                  <AlertTriangle className="w-4 h-4 inline ml-1" /> הצד השני אינו רואה את הנכתב כאן.
+                </div>
+                <textarea 
+                  className="flex-1 w-full p-4 rounded-xl border border-gray-200 focus:outline-none focus:border-teal-500 resize-none shadow-inner"
+                  placeholder="הקלד כאן את ההערות שלך במהלך הפגישה..."
+                ></textarea>
+              </div>
+            )}
+
           </div>
         </div>
       </div>
@@ -406,13 +519,13 @@ function VeriSessApp({ user }) {
           <ShieldCheck className="w-8 h-8 text-blue-900" />
           <span className="text-2xl font-bold text-blue-900">Veri<span className="text-teal-500">Sess</span></span>
         </div>
-        <div className="flex gap-4">
-          <button onClick={() => setCurrentView('client')} className={`px-4 py-2 rounded-md font-medium ${currentView === 'client' ? 'bg-gray-100 text-blue-900' : 'text-gray-500'}`}>ממשק לקוח (חיפוש)</button>
-          <button onClick={() => setCurrentView('provider')} className={`px-4 py-2 rounded-md font-medium ${currentView === 'provider' ? 'bg-gray-100 text-blue-900' : 'text-gray-500'}`}>לוח בקרה (מטפל)</button>
+        <div className="flex gap-2">
+          <button onClick={() => setCurrentView('client')} className={`px-4 py-2 rounded-lg font-medium transition-colors ${currentView === 'client' || currentView === 'checkout' ? 'bg-teal-50 text-teal-700' : 'text-gray-500 hover:bg-gray-100'}`}>ממשק לקוח</button>
+          <button onClick={() => setCurrentView('provider')} className={`px-4 py-2 rounded-lg font-medium transition-colors ${currentView === 'provider' ? 'bg-teal-50 text-teal-700' : 'text-gray-500 hover:bg-gray-100'}`}>אזור מטפל</button>
         </div>
       </nav>
 
-      <main className="container mx-auto p-4">
+      <main className="container mx-auto p-4 pb-12">
         {currentView === 'client' && <ClientView />}
         {currentView === 'provider' && <ProviderDashboard />}
         {currentView === 'checkout' && <CheckoutView />}
