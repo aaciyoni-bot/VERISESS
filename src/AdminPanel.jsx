@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
   ShieldCheck, AlertTriangle, Users, Video, Activity, 
-  Lock, Search, Eye, CheckCircle, Bell
+  Lock, Search, Eye, CheckCircle, Bell, FileText, XCircle, Check
 } from 'lucide-react';
 
 export default function AdminPanel() {
@@ -10,16 +10,23 @@ export default function AdminPanel() {
   const [loginError, setLoginError] = useState('');
   
   // מצב המערכת
-  const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard', 'live_sessions', 'alerts'
+  const [activeTab, setActiveTab] = useState('users'); // 'dashboard', 'live_sessions', 'alerts', 'users'
   const [simulatedAlert, setSimulatedAlert] = useState(null);
 
-  // התחברות (סימולציה של אימות מנהל)
+  // נתוני דמו לאישור מטפלים (בפרודקשן נמשך מ-Firebase)
+  const [pendingProviders, setPendingProviders] = useState([
+    { id: 'PROV-1042', name: 'דניאל כהן', category: 'פסיכולוגיה קלינית', date: 'היום, 10:45', liveness: true, license: true, status: 'pending' },
+    { id: 'PROV-1043', name: 'עו"ד שרה לוי', category: 'משפט פלילי', date: 'היום, 09:12', liveness: true, license: true, status: 'pending' },
+    { id: 'PROV-1044', name: 'אורן יצחקי', category: 'ייעוץ זוגי', date: 'אתמול, 18:30', liveness: true, license: false, status: 'missing_docs' }
+  ]);
+
+  // התחברות
   const handleLogin = (e) => {
     e.preventDefault();
     if (password === 'admin123') {
       setIsAuthenticated(true);
       
-      // סימולציה של התראת AI חיה שנכנסת אחרי 4 שניות (לצורך ההדגמה למנכ"ל)
+      // סימולציה של התראת AI חיה שנכנסת
       setTimeout(() => {
         setSimulatedAlert({
           id: 'ROOM-892',
@@ -34,6 +41,13 @@ export default function AdminPanel() {
     } else {
       setLoginError('סיסמה שגויה. הניסיון תועד במערכת.');
     }
+  };
+
+  // פונקציה לאישור מטפל
+  const approveProvider = (id) => {
+    setPendingProviders(prev => prev.map(p => p.id === id ? { ...p, status: 'approved' } : p));
+    // בפרודקשן: כאן נשלח בקשה ל-Firebase לעדכן את השדה verified: true
+    alert(`המטפל ${id} אושר בהצלחה. כעת הוא יכול לקבל שיחות.`);
   };
 
   // --- מסך התחברות מאובטח (Login) ---
@@ -110,8 +124,20 @@ export default function AdminPanel() {
             <AlertTriangle className="w-5 h-5" /> יומן התראות AI
             {simulatedAlert && <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full mr-auto animate-pulse">1</span>}
           </button>
-          <button className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-gray-400 hover:bg-gray-800 hover:text-white transition-colors font-medium">
+          
+          <div className="w-full h-px bg-gray-800 my-2"></div>
+          
+          {/* הטאב החדש שהוספנו: ניהול ואישור מטפלים */}
+          <button 
+            onClick={() => setActiveTab('users')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors font-medium ${activeTab === 'users' ? 'bg-gray-800 text-white border-r-4 border-red-500' : 'text-gray-400 hover:bg-gray-800 hover:text-white'}`}
+          >
             <Users className="w-5 h-5" /> אישור מטפלים (KYC)
+            {pendingProviders.filter(p => p.status === 'pending').length > 0 && (
+              <span className="bg-yellow-500 text-gray-900 text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full mr-auto">
+                {pendingProviders.filter(p => p.status === 'pending').length}
+              </span>
+            )}
           </button>
         </nav>
         
@@ -202,6 +228,74 @@ export default function AdminPanel() {
             </div>
           )}
 
+          {/* טאב 2: אישור מטפלים (KYC) - *** הפיצ'ר החדש! *** */}
+          {activeTab === 'users' && (
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden animate-in fade-in">
+              <div className="p-5 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
+                <h2 className="font-bold text-gray-800 text-lg">בקרת איכות: אישור מטפלים חדשים</h2>
+                <span className="text-sm text-gray-500">רק מטפלים מאושרים יורשו להציע שירות.</span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-right text-sm">
+                  <thead className="bg-white text-gray-500 border-b border-gray-200">
+                    <tr>
+                      <th className="p-4 font-bold">מזהה ושם</th>
+                      <th className="p-4 font-bold">תחום התמחות</th>
+                      <th className="p-4 font-bold">תאריך הרשמה</th>
+                      <th className="p-4 font-bold">סטטוס מסמכים</th>
+                      <th className="p-4 font-bold text-center">פעולות אישור</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {pendingProviders.map((provider) => (
+                      <tr key={provider.id} className="hover:bg-gray-50 transition-colors">
+                        <td className="p-4">
+                          <div className="font-bold text-gray-800">{provider.name}</div>
+                          <div className="text-xs text-gray-400 font-mono">{provider.id}</div>
+                        </td>
+                        <td className="p-4 text-gray-600">{provider.category}</td>
+                        <td className="p-4 text-gray-600">{provider.date}</td>
+                        <td className="p-4">
+                          <div className="flex flex-col gap-1">
+                            <span className={`text-xs flex items-center gap-1 font-bold ${provider.liveness ? 'text-green-600' : 'text-red-500'}`}>
+                              {provider.liveness ? <CheckCircle className="w-3 h-3"/> : <XCircle className="w-3 h-3"/>} צילום חי (Liveness)
+                            </span>
+                            <span className={`text-xs flex items-center gap-1 font-bold ${provider.license ? 'text-green-600' : 'text-red-500'}`}>
+                              {provider.license ? <CheckCircle className="w-3 h-3"/> : <XCircle className="w-3 h-3"/>} רישיון / תעודה
+                            </span>
+                          </div>
+                        </td>
+                        <td className="p-4">
+                          {provider.status === 'approved' ? (
+                            <span className="flex items-center justify-center gap-1 text-green-600 font-bold bg-green-50 py-2 rounded-lg">
+                              <Check className="w-4 h-4" /> אושר
+                            </span>
+                          ) : provider.status === 'missing_docs' ? (
+                            <span className="flex items-center justify-center gap-1 text-yellow-600 font-bold bg-yellow-50 py-2 rounded-lg">
+                              חסרים מסמכים
+                            </span>
+                          ) : (
+                            <div className="flex items-center justify-center gap-2">
+                              <button className="text-gray-500 hover:text-blue-600 transition-colors p-2 bg-gray-100 rounded-lg" title="צפה במסמכים">
+                                <FileText className="w-5 h-5" />
+                              </button>
+                              <button 
+                                onClick={() => approveProvider(provider.id)}
+                                className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg font-bold transition-colors"
+                              >
+                                אשר מטפל
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
           {/* טאב 3: יומן חריגות */}
           {activeTab === 'alerts' && (
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden animate-in fade-in">
@@ -237,15 +331,6 @@ export default function AdminPanel() {
                   </tbody>
                 </table>
               </div>
-            </div>
-          )}
-
-          {/* טאב שגיאה לחיפוי */}
-          {activeTab === 'live_sessions' && (
-            <div className="flex flex-col items-center justify-center p-20 text-center animate-in zoom-in">
-              <Video className="w-16 h-16 text-gray-300 mb-4" />
-              <h2 className="text-xl font-bold text-gray-700 mb-2">מערכת הניטור בפיתוח</h2>
-              <p className="text-gray-500">תצוגת רשת החדרים החיים תחובר בשלב ב' של הפרויקט.</p>
             </div>
           )}
 
