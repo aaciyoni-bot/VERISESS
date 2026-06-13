@@ -1,255 +1,432 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { initializeApp } from 'firebase/app';
+import { getAuth } from 'firebase/auth';
+import { getFirestore, doc, onSnapshot, updateDoc, arrayUnion } from 'firebase/firestore';
 import { 
-  ShieldCheck, AlertTriangle, Users, Video, Activity, 
-  Lock, Search, Eye, CheckCircle, Bell
+  ShieldCheck, Video, VideoOff, Mic, MicOff, Clock, 
+  PhoneCall, MessageSquare, PenTool, AlertTriangle, Send, 
+  Eraser, Trash2, Users, UserPlus, Check, X, LayoutGrid, Maximize
 } from 'lucide-react';
 
-export default function AdminPanel() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [password, setPassword] = useState('');
-  const [loginError, setLoginError] = useState('');
-  
-  // מצב המערכת
-  const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard', 'live_sessions', 'alerts'
-  const [simulatedAlert, setSimulatedAlert] = useState(null);
+// ==========================================
+// 1. חיבורים ל-Firebase
+// ==========================================
+let app, auth, db, appId;
+try {
+  const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+  app = initializeApp(firebaseConfig);
+  auth = getAuth(app);
+  db = getFirestore(app);
+  appId = typeof __app_id !== 'undefined' ? __app_id : 'verisess-dev-id';
+} catch (error) {
+  console.error("Firebase Init Error:", error);
+}
 
-  // התחברות (סימולציה של אימות מנהל)
-  const handleLogin = (e) => {
-    e.preventDefault();
-    if (password === 'admin123') {
-      setIsAuthenticated(true);
+// ==========================================
+// 2. רכיב הלוח הלבן הפנימי
+// ==========================================
+const WhiteboardWidget = () => {
+  const canvasRef = useRef(null);
+  const contextRef = useRef(null);
+  const wrapperRef = useRef(null);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [color, setColor] = useState('#000000');
+  const [tool, setTool] = useState('pen');
+
+  useEffect(() => {
+    const initCanvas = () => {
+      const canvas = canvasRef.current;
+      const wrapper = wrapperRef.current;
+      if (!canvas || !wrapper) return;
+
+      const dpr = window.devicePixelRatio || 1;
+      const rect = wrapper.getBoundingClientRect();
       
-      // סימולציה של התראת AI חיה שנכנסת אחרי 4 שניות (לצורך ההדגמה למנכ"ל)
-      setTimeout(() => {
-        setSimulatedAlert({
-          id: 'ROOM-892',
-          expert: 'ד"ר יעל שרת',
-          client: 'אנונימי_44',
-          type: 'anti_circumvention',
-          keyword: '"תעביר לי בביט"',
-          confidence: '98%',
-          time: new Date().toLocaleTimeString()
-        });
-      }, 4000);
-    } else {
-      setLoginError('סיסמה שגויה. הניסיון תועד במערכת.');
+      canvas.width = rect.width * dpr;
+      canvas.height = 400 * dpr; 
+      canvas.style.width = `${rect.width}px`;
+      canvas.style.height = `400px`;
+
+      const context = canvas.getContext('2d');
+      context.scale(dpr, dpr);
+      context.lineCap = 'round';
+      context.lineJoin = 'round';
+      context.fillStyle = '#ffffff';
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      contextRef.current = context;
+    };
+    setTimeout(initCanvas, 100);
+    window.addEventListener('resize', initCanvas);
+    return () => window.removeEventListener('resize', initCanvas);
+  }, []);
+
+  useEffect(() => {
+    if (contextRef.current) {
+      contextRef.current.strokeStyle = tool === 'eraser' ? '#ffffff' : color;
+      contextRef.current.lineWidth = tool === 'eraser' ? 12 : 3;
+    }
+  }, [color, tool]);
+
+  const startDrawing = ({ nativeEvent }) => {
+    const { offsetX, offsetY } = getCoordinates(nativeEvent);
+    contextRef.current.beginPath();
+    contextRef.current.moveTo(offsetX, offsetY);
+    setIsDrawing(true);
+  };
+
+  const finishDrawing = () => {
+    contextRef.current.closePath();
+    setIsDrawing(false);
+  };
+
+  const draw = ({ nativeEvent }) => {
+    if (!isDrawing) return;
+    const { offsetX, offsetY } = getCoordinates(nativeEvent);
+    contextRef.current.lineTo(offsetX, offsetY);
+    contextRef.current.stroke();
+  };
+
+  const getCoordinates = (event) => {
+    if (event.touches && event.touches.length > 0) {
+      const rect = canvasRef.current.getBoundingClientRect();
+      return {
+        offsetX: event.touches[0].clientX - rect.left,
+        offsetY: event.touches[0].clientY - rect.top
+      };
+    }
+    return {
+      offsetX: event.nativeEvent ? event.nativeEvent.offsetX : event.offsetX,
+      offsetY: event.nativeEvent ? event.nativeEvent.offsetY : event.offsetY
+    };
+  };
+
+  const clearCanvas = () => {
+    const canvas = canvasRef.current;
+    const context = canvas.getContext('2d');
+    context.fillStyle = '#ffffff';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+  };
+
+  return (
+    <div className="flex flex-col h-full bg-white rounded-xl border border-gray-200 overflow-hidden" ref={wrapperRef}>
+      <div className="bg-gray-50 border-b border-gray-200 p-2 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          {['#000000', '#EF4444', '#3B82F6', '#10B981'].map(c => (
+            <button key={c} onClick={() => { setColor(c); setTool('pen'); }} className={`w-6 h-6 rounded-full border-2 ${color === c && tool === 'pen' ? 'border-gray-800' : 'border-transparent'}`} style={{ backgroundColor: c }} />
+          ))}
+          <div className="w-px h-6 bg-gray-300 mx-1"></div>
+          <button onClick={() => setTool('pen')} className={`p-1.5 rounded-md ${tool === 'pen' ? 'bg-teal-100 text-teal-700' : 'text-gray-600'}`}><PenTool className="w-4 h-4" /></button>
+          <button onClick={() => setTool('eraser')} className={`p-1.5 rounded-md ${tool === 'eraser' ? 'bg-gray-200 text-gray-800' : 'text-gray-600'}`}><Eraser className="w-4 h-4" /></button>
+        </div>
+        <button onClick={clearCanvas} className="p-1.5 text-red-500 hover:bg-red-50 rounded-md"><Trash2 className="w-4 h-4" /></button>
+      </div>
+      <div className="flex-1 relative cursor-crosshair touch-none bg-white">
+        <canvas
+          ref={canvasRef} onMouseDown={startDrawing} onMouseUp={finishDrawing} onMouseMove={draw} onMouseLeave={finishDrawing} onTouchStart={startDrawing} onTouchEnd={finishDrawing} onTouchMove={draw}
+          className="w-full h-full"
+        />
+      </div>
+    </div>
+  );
+};
+
+// ==========================================
+// 3. החדר הראשי החכם (Unified Video Room)
+// ==========================================
+export default function VideoRoom({ sessionId, onLeave, isProvider = true }) {
+  const [messages, setMessages] = useState([]);
+  const [newMessage, setNewMessage] = useState('');
+  const [activeTab, setActiveTab] = useState('chat'); // chat, whiteboard, notes, participants
+  
+  // ציוד קצה
+  const [micEnabled, setMicEnabled] = useState(true);
+  const [cameraEnabled, setCameraEnabled] = useState(true);
+  const localVideoRef = useRef(null);
+  const [localStream, setLocalStream] = useState(null);
+
+  const currentUser = auth?.currentUser;
+
+  // --- ניהול משתתפים דינמי ---
+  const [participants, setParticipants] = useState([
+    { id: 'me', name: 'אני', isLocal: true, img: null },
+    { id: 'p1', name: 'לקוח 1', isLocal: false, img: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?ixlib=rb-4.0.3&w=1000&q=80' }
+  ]);
+  const [waitingRoom, setWaitingRoom] = useState([]);
+
+  // פונקציית טסט להדגמת היכולת הדינמית (כפתור בסרגל העליון)
+  const addTestParticipant = () => {
+    const newId = `p${participants.length}`;
+    setParticipants(prev => [
+      ...prev, 
+      { id: newId, name: `משתתף נוסף ${participants.length}`, isLocal: false, img: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?ixlib=rb-4.0.3&w=1000&q=80' }
+    ]);
+  };
+
+  // 1. הפעלת מצלמה מקומית
+  useEffect(() => {
+    const initCamera = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        setLocalStream(stream);
+        if (localVideoRef.current) localVideoRef.current.srcObject = stream;
+      } catch (err) { console.error("שגיאת מצלמה:", err); }
+    };
+    initCamera();
+    return () => { if (localStream) localStream.getTracks().forEach(track => track.stop()); };
+  }, []);
+
+  // 2. האזנה לפעילות בסשן בענן
+  useEffect(() => {
+    if (!sessionId || !db) return;
+    const sessionRef = doc(db, 'artifacts', appId, 'public', 'data', 'sessions', sessionId);
+    const unsubscribe = onSnapshot(sessionRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setMessages(data.messages || []);
+        if (data.status === 'ended' && onLeave) {
+           alert("השיחה הסתיימה.");
+           onLeave();
+        }
+      }
+    });
+    return () => unsubscribe();
+  }, [sessionId, onLeave]);
+
+  const sendMessage = async (e) => {
+    e.preventDefault();
+    if (!newMessage.trim() || !sessionId || !currentUser) return;
+    const sessionRef = doc(db, 'artifacts', appId, 'public', 'data', 'sessions', sessionId);
+    try {
+      await updateDoc(sessionRef, {
+        messages: arrayUnion({ senderId: currentUser.uid, text: newMessage, timestamp: new Date().toISOString() })
+      });
+      setNewMessage('');
+    } catch (error) { console.error("Error sending message:", error); }
+  };
+
+  const handleEndCall = async () => {
+    if (sessionId && db) {
+      const sessionRef = doc(db, 'artifacts', appId, 'public', 'data', 'sessions', sessionId);
+      try { await updateDoc(sessionRef, { status: 'ended' }); } catch (error) { console.error(error); }
+    }
+    if (onLeave) onLeave();
+  };
+
+  const toggleMedia = (type) => {
+    if (localStream) {
+      const tracks = type === 'video' ? localStream.getVideoTracks() : localStream.getAudioTracks();
+      tracks.forEach(track => { track.enabled = !track.enabled; });
+      if (type === 'video') setCameraEnabled(!cameraEnabled);
+      if (type === 'audio') setMicEnabled(!micEnabled);
     }
   };
 
-  // --- מסך התחברות מאובטח (Login) ---
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4" dir="rtl">
-        <div className="max-w-md w-full bg-gray-800 rounded-2xl shadow-2xl border border-gray-700 p-8">
-          <div className="text-center mb-8">
-            <ShieldCheck className="w-16 h-16 text-red-500 mx-auto mb-4" />
-            <h1 className="text-2xl font-bold text-white">VeriSess Admin</h1>
-            <p className="text-gray-400 text-sm mt-2">כניסה למרחב מוגן. נדרש סיווג ביטחוני.</p>
+  // ==========================================
+  // מנוע התצוגה החכם (Smart Layout Engine)
+  // ==========================================
+  const renderVideoLayout = () => {
+    // 1-on-1 Layout (PiP)
+    if (participants.length <= 2) {
+      const remoteParticipant = participants.find(p => !p.isLocal) || participants[0];
+      return (
+        <>
+          <img src={remoteParticipant.img} alt="Remote" className="absolute inset-0 w-full h-full object-cover opacity-80" />
+          <div className="absolute top-6 right-6 bg-black/60 text-white px-4 py-2 rounded-lg backdrop-blur-sm z-10 flex items-center gap-2 shadow-lg">
+             <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+             {remoteParticipant.name}
           </div>
           
-          <form onSubmit={handleLogin} className="space-y-6">
-            <div>
-              <label className="block text-gray-300 text-sm font-bold mb-2">קוד מזהה (Badge ID)</label>
-              <input type="text" value="TS-LEAD-01" disabled className="w-full bg-gray-700 text-gray-500 border border-gray-600 rounded-lg px-4 py-3 cursor-not-allowed" />
-            </div>
-            <div>
-              <label className="block text-gray-300 text-sm font-bold mb-2">סיסמת גישה</label>
-              <div className="relative">
-                <input 
-                  type="password" 
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="הזן admin123"
-                  className="w-full bg-gray-900 text-white border border-gray-600 rounded-lg px-4 py-3 focus:outline-none focus:border-red-500" 
-                />
-                <Lock className="absolute left-3 top-3 text-gray-500 w-5 h-5" />
+          <div className="absolute bottom-24 left-6 w-48 h-32 bg-gray-800 rounded-xl overflow-hidden border-2 border-gray-700 z-20 shadow-2xl transition-all hover:scale-105">
+            <video ref={localVideoRef} autoPlay playsInline muted className={`w-full h-full object-cover ${cameraEnabled ? '' : 'hidden'}`} />
+            {!cameraEnabled && (
+              <div className="w-full h-full flex flex-col items-center justify-center text-gray-500 bg-gray-900">
+                <VideoOff className="w-6 h-6 mb-1" />
               </div>
-              {loginError && <p className="text-red-400 text-sm mt-2 font-medium">{loginError}</p>}
+            )}
+          </div>
+        </>
+      );
+    }
+    
+    // Group Layout (Grid)
+    return (
+      <div className="absolute inset-0 p-6 pt-20 grid gap-4 grid-cols-2 lg:grid-cols-3">
+        {participants.map((p, idx) => (
+          <div key={p.id} className="bg-gray-800 rounded-xl overflow-hidden relative border border-gray-700 shadow-lg group">
+            {p.isLocal ? (
+              <>
+                <video ref={localVideoRef} autoPlay playsInline muted className={`w-full h-full object-cover ${cameraEnabled ? '' : 'hidden'}`} />
+                {!cameraEnabled && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-gray-900">
+                    <VideoOff className="w-8 h-8 text-gray-500" />
+                  </div>
+                )}
+              </>
+            ) : (
+              <img src={p.img} alt={p.name} className="w-full h-full object-cover" />
+            )}
+            <div className="absolute bottom-3 right-3 bg-black/70 backdrop-blur px-3 py-1.5 rounded-lg text-white text-sm font-medium">
+              {p.name} {p.isLocal && '(אתה)'}
             </div>
-            <button type="submit" className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-lg transition-colors shadow-lg shadow-red-600/30">
-              אמת והיכנס
-            </button>
-          </form>
-        </div>
+          </div>
+        ))}
       </div>
     );
-  }
+  };
 
-  // --- המערכת הפנימית (Admin Dashboard) ---
   return (
-    <div className="min-h-screen bg-gray-100 flex font-sans" dir="rtl">
+    <div className="max-w-7xl mx-auto my-4 bg-gray-900 rounded-2xl overflow-hidden shadow-2xl h-[85vh] flex relative border border-gray-800" dir="rtl">
       
-      {/* תפריט צד (Sidebar) */}
-      <div className="w-64 bg-gray-900 text-white flex flex-col shadow-2xl z-20">
-        <div className="p-6 border-b border-gray-800 flex items-center gap-3">
-          <ShieldCheck className="w-8 h-8 text-red-500" />
-          <div>
-            <h2 className="font-bold text-lg">Trust & Safety</h2>
-            <span className="text-xs text-red-400 font-mono tracking-widest">LIVE MONITORING</span>
+      {/* ------------------------------------------- */}
+      {/* אזור הוידאו המרכזי */}
+      {/* ------------------------------------------- */}
+      <div className="flex-1 relative bg-black flex items-center justify-center overflow-hidden">
+        
+        {/* סרגל עליון (חדר מאוחד) */}
+        <div className="absolute top-4 left-4 z-30 flex items-center gap-2">
+          <div className="bg-black/60 text-white px-4 py-2 rounded-lg backdrop-blur-sm flex items-center gap-2 border border-gray-700">
+            <Clock className="w-4 h-4 text-teal-400" /> <span className="font-mono">44:59</span>
           </div>
         </div>
-        
-        <nav className="flex-1 p-4 space-y-2">
-          <button 
-            onClick={() => setActiveTab('dashboard')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors font-medium ${activeTab === 'dashboard' ? 'bg-gray-800 text-white border-r-4 border-red-500' : 'text-gray-400 hover:bg-gray-800 hover:text-white'}`}
-          >
-            <Activity className="w-5 h-5" /> תמונת מצב
+
+        {/* כפתור פיתוח - להוספת אנשים ולראות איך הגריד משתנה! */}
+        <div className="absolute top-4 right-4 z-30 flex gap-2">
+           <button onClick={addTestParticipant} className="bg-blue-600/80 hover:bg-blue-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold backdrop-blur-sm border border-blue-400 flex items-center gap-1 transition-colors">
+             <UserPlus className="w-4 h-4" /> סמלץ כניסת משתתף נוסף
+           </button>
+           <div className="bg-gray-800/80 text-white px-3 py-1.5 rounded-lg text-xs border border-gray-700 backdrop-blur-sm">
+             מצב: {participants.length <= 2 ? '1-על-1 (PiP)' : 'קבוצה (Grid)'}
+           </div>
+        </div>
+
+        {/* קריאה למנוע התצוגה החכם */}
+        {renderVideoLayout()}
+
+        {/* סרגל שליטה תחתון */}
+        <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-gray-900/90 backdrop-blur-md px-8 py-3 rounded-full flex gap-4 z-30 border border-gray-700 shadow-2xl">
+          <button onClick={() => toggleMedia('audio')} className={`p-4 rounded-full transition-colors ${micEnabled ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-red-500/20 text-red-500'}`}>
+            {micEnabled ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
           </button>
-          <button 
-            onClick={() => setActiveTab('live_sessions')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors font-medium ${activeTab === 'live_sessions' ? 'bg-gray-800 text-white border-r-4 border-red-500' : 'text-gray-400 hover:bg-gray-800 hover:text-white'}`}
-          >
-            <Video className="w-5 h-5" /> חדרים פעילים 
-            <span className="bg-green-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full mr-auto">12</span>
+          
+          <button onClick={() => toggleMedia('video')} className={`p-4 rounded-full transition-colors ${cameraEnabled ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-red-500/20 text-red-500'}`}>
+            {cameraEnabled ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
           </button>
-          <button 
-            onClick={() => setActiveTab('alerts')}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors font-medium ${activeTab === 'alerts' ? 'bg-gray-800 text-white border-r-4 border-red-500' : 'text-gray-400 hover:bg-gray-800 hover:text-white'}`}
-          >
-            <AlertTriangle className="w-5 h-5" /> יומן התראות AI
-            {simulatedAlert && <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full mr-auto animate-pulse">1</span>}
+
+          <div className="w-px h-8 bg-gray-700 mx-2 self-center"></div>
+
+          <button onClick={handleEndCall} className="p-4 bg-red-600 hover:bg-red-700 rounded-full text-white font-bold px-6 flex items-center gap-2 shadow-lg transition-transform active:scale-95">
+             <PhoneCall className="w-5 h-5 transform rotate-[135deg]" /> {participants.length > 2 && isProvider ? 'סיים לכולם' : 'עזוב שיחה'}
           </button>
-          <button className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-gray-400 hover:bg-gray-800 hover:text-white transition-colors font-medium">
-            <Users className="w-5 h-5" /> אישור מטפלים (KYC)
-          </button>
-        </nav>
-        
-        <div className="p-4 border-t border-gray-800 text-sm text-gray-500 flex items-center gap-2">
-          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-          מחובר כ: T&S Lead
         </div>
       </div>
 
-      {/* אזור התוכן המרכזי */}
-      <div className="flex-1 flex flex-col overflow-hidden bg-gray-50">
+      {/* ------------------------------------------- */}
+      {/* פאנל ימני: ווידג'טים חכמים (Tabs) */}
+      {/* ------------------------------------------- */}
+      <div className="w-96 bg-gray-50 flex flex-col z-20 border-l border-gray-200">
         
-        {/* כותרת עליונה */}
-        <header className="bg-white shadow-sm border-b border-gray-200 h-16 flex items-center justify-between px-6 z-10">
-          <div className="flex items-center gap-4 bg-gray-50 border border-gray-200 px-4 py-2 rounded-lg w-96">
-            <Search className="w-5 h-5 text-gray-400" />
-            <input type="text" placeholder="חיפוש מזהה פגישה או מטפל..." className="bg-transparent border-none focus:outline-none text-sm w-full text-gray-700" />
-          </div>
-          <div className="flex items-center gap-4">
-            <button className="relative p-2 text-gray-500 hover:bg-gray-100 rounded-full transition-colors">
-              <Bell className="w-6 h-6" />
-              {simulatedAlert && <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-red-500 border-2 border-white rounded-full"></span>}
+        {/* ניווט הטאבים */}
+        <div className="flex flex-wrap bg-white border-b border-gray-200 p-1">
+          <button onClick={() => setActiveTab('chat')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-1.5 ${activeTab === 'chat' ? 'bg-teal-50 text-teal-700' : 'text-gray-500 hover:bg-gray-50'}`}>
+            <MessageSquare className="w-4 h-4" /> צ'אט
+          </button>
+          <button onClick={() => setActiveTab('whiteboard')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-1.5 ${activeTab === 'whiteboard' ? 'bg-teal-50 text-teal-700' : 'text-gray-500 hover:bg-gray-50'}`}>
+            <PenTool className="w-4 h-4" /> לוח
+          </button>
+          {isProvider && (
+            <button onClick={() => setActiveTab('notes')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-1.5 ${activeTab === 'notes' ? 'bg-teal-50 text-teal-700' : 'text-gray-500 hover:bg-gray-50'}`}>
+              <ShieldCheck className="w-4 h-4" /> הערות
             </button>
-            <div className="w-8 h-8 bg-gray-900 rounded-full flex items-center justify-center text-white font-bold text-sm">
-              TS
-            </div>
-          </div>
-        </header>
+          )}
+          <button onClick={() => setActiveTab('participants')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-1.5 ${activeTab === 'participants' ? 'bg-teal-50 text-teal-700' : 'text-gray-500 hover:bg-gray-50'}`}>
+            <Users className="w-4 h-4" /> {participants.length}
+          </button>
+        </div>
 
-        {/* תוכן מתחלף */}
-        <main className="flex-1 overflow-y-auto p-8">
+        {/* תוכן הטאב הנבחר */}
+        <div className="flex-1 overflow-hidden p-3 bg-gray-50 flex flex-col">
           
-          {/* פופ-אפ התראת AI חיה - קופץ מתי שיש זיהוי עקיפה */}
-          {simulatedAlert && (
-            <div className="mb-8 bg-red-50 border border-red-200 rounded-xl shadow-lg flex flex-col md:flex-row items-start md:items-center justify-between overflow-hidden animate-in slide-in-from-top-4">
-              <div className="flex items-start gap-4 p-5">
-                <div className="bg-red-100 p-3 rounded-full mt-1">
-                  <AlertTriangle className="w-6 h-6 text-red-600 animate-pulse" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <h3 className="text-red-800 font-bold text-lg">התראת עקיפת מערכת (AI Detection)</h3>
-                    <span className="bg-red-600 text-white text-xs px-2 py-1 rounded font-mono">{simulatedAlert.time}</span>
-                  </div>
-                  <p className="text-red-700 text-sm mb-2">
-                    זוהתה חריגה בחדר <strong>{simulatedAlert.id}</strong> בין המטפל <strong>{simulatedAlert.expert}</strong> ללקוח.
-                  </p>
-                  <div className="bg-white px-3 py-2 rounded-lg border border-red-200 text-sm font-mono text-gray-800 inline-block shadow-sm">
-                    תמלול שזוהה: <span className="bg-yellow-200 font-bold px-1">{simulatedAlert.keyword}</span> <span className="text-gray-400 text-xs mr-2">(ודאות AI: {simulatedAlert.confidence})</span>
-                  </div>
-                </div>
+          {/* טאב צ'אט */}
+          {activeTab === 'chat' && (
+            <div className="h-full flex flex-col">
+              <div className="flex-1 overflow-y-auto space-y-3 mb-4 pr-1">
+                {messages.length === 0 ? (
+                  <div className="text-center text-gray-400 text-sm mt-10">הצ'אט מוצפן מקצה לקצה.</div>
+                ) : (
+                  messages.map((msg, idx) => {
+                    const isMe = currentUser && msg.senderId === currentUser.uid;
+                    return (
+                      <div key={idx} className={`flex flex-col ${isMe ? 'items-start' : 'items-end'}`}>
+                        <div className={`px-4 py-2 rounded-2xl max-w-[90%] text-sm ${isMe ? 'bg-teal-500 text-white rounded-tr-none' : 'bg-white border border-gray-200 text-gray-800 rounded-tl-none shadow-sm'}`}>
+                          {msg.text}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
               </div>
-              <div className="flex flex-col gap-2 p-5 bg-red-100/50 w-full md:w-auto h-full border-t md:border-t-0 md:border-r border-red-200 justify-center">
-                <button className="w-full bg-red-600 hover:bg-red-700 text-white px-6 py-2.5 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-colors shadow-md">
-                  <Eye className="w-4 h-4" /> הצטרף לחדר כצופה סמוי
+              <form onSubmit={sendMessage} className="flex gap-2 bg-white p-1 rounded-full border border-gray-200 shadow-sm">
+                <input 
+                  type="text" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} 
+                  placeholder="הקלד הודעה..." className="flex-1 bg-transparent px-4 py-2 text-sm focus:outline-none" 
+                />
+                <button type="submit" className="bg-teal-500 text-white p-2 rounded-full hover:bg-teal-600 disabled:opacity-50" disabled={!newMessage.trim()}>
+                  <Send className="w-4 h-4" />
                 </button>
-                <button onClick={() => setSimulatedAlert(null)} className="w-full bg-white border border-red-200 text-red-700 hover:bg-red-50 px-6 py-2.5 rounded-lg text-sm font-bold transition-colors">
-                  התעלם (False Alarm)
-                </button>
-              </div>
+              </form>
             </div>
           )}
 
-          {/* טאב 1: תמונת מצב */}
-          {activeTab === 'dashboard' && (
-            <div className="space-y-8 animate-in fade-in">
-              <div>
-                <h2 className="text-2xl font-bold text-gray-800 mb-6">תמונת מצב חיה</h2>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                  {[
-                    { title: 'סשנים פעילים כרגע', value: '12', color: 'text-blue-600', bg: 'bg-blue-50' },
-                    { title: 'התראות AI היום', value: '3', color: 'text-red-600', bg: 'bg-red-50' },
-                    { title: 'מטפלים אונליין (SOS)', value: '45', color: 'text-green-600', bg: 'bg-green-50' },
-                    { title: 'עמלות שנצברו היום', value: '₪2,450', color: 'text-gray-800', bg: 'bg-gray-200' },
-                  ].map((stat, idx) => (
-                    <div key={idx} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
-                      <div className={`w-12 h-12 rounded-full flex items-center justify-center ${stat.bg}`}>
-                        <Activity className={`w-6 h-6 ${stat.color}`} />
+          {/* טאב לוח לבן */}
+          {activeTab === 'whiteboard' && (
+            <div className="h-full w-full"><WhiteboardWidget /></div>
+          )}
+
+          {/* טאב הערות חסויות (מוצג רק למנחה/מטפל) */}
+          {activeTab === 'notes' && isProvider && (
+            <div className="h-full flex flex-col gap-4">
+              <div className="bg-yellow-50 border border-yellow-200 p-3 rounded-lg text-sm text-yellow-800 flex items-start gap-2">
+                <AlertTriangle className="w-5 h-5 flex-shrink-0" />
+                <div>המשתתפים אינם רואים את הנכתב כאן.</div>
+              </div>
+              <textarea 
+                className="flex-1 w-full p-4 rounded-xl border border-gray-200 focus:outline-none focus:border-teal-500 resize-none shadow-inner bg-white"
+                placeholder="הקלד הערות פרטיות, אבחנות או תזכורות..."
+              ></textarea>
+            </div>
+          )}
+
+          {/* טאב משתתפים (ניהול הקהל) */}
+          {activeTab === 'participants' && (
+            <div className="h-full flex flex-col">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="font-bold text-gray-700 text-sm">משתתפים בחדר ({participants.length})</h3>
+                {isProvider && participants.length > 2 && (
+                  <button className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded hover:bg-blue-100">השתק את כולם</button>
+                )}
+              </div>
+              <div className="space-y-2 flex-1 overflow-y-auto">
+                {participants.map(p => (
+                  <div key={p.id} className="bg-white p-3 rounded-xl border border-gray-100 flex justify-between items-center shadow-sm">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-200">
+                        {p.img ? <img src={p.img} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center font-bold text-gray-500">{p.name.charAt(0)}</div>}
                       </div>
                       <div>
-                        <div className={`text-2xl font-bold ${stat.color}`}>{stat.value}</div>
-                        <h3 className="text-gray-500 text-xs font-bold">{stat.title}</h3>
+                        <span className="font-bold text-sm text-gray-800 block">{p.name} {p.isLocal && '(אתה)'}</span>
+                        {p.id === 'me' && isProvider && <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-bold">מנחה</span>}
                       </div>
                     </div>
-                  ))}
-                </div>
+                    {isProvider && !p.isLocal && (
+                      <button className="text-gray-400 hover:text-red-500" title="הוצא מהחדר"><X className="w-4 h-4" /></button>
+                    )}
+                  </div>
+                ))}
               </div>
             </div>
           )}
 
-          {/* טאב 3: יומן חריגות */}
-          {activeTab === 'alerts' && (
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden animate-in fade-in">
-              <div className="p-5 border-b border-gray-200 bg-gray-50">
-                <h2 className="font-bold text-gray-800 text-lg">יומן חריגות AI ודוחות התנהגות</h2>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-right text-sm">
-                  <thead className="bg-white text-gray-500 border-b border-gray-200">
-                    <tr>
-                      <th className="p-4 font-bold">זמן</th>
-                      <th className="p-4 font-bold">סוג אירוע</th>
-                      <th className="p-4 font-bold">מזהה חדר</th>
-                      <th className="p-4 font-bold">סטטוס טיפול</th>
-                      <th className="p-4 font-bold">פעולה</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    <tr className="hover:bg-gray-50 transition-colors">
-                      <td className="p-4 text-gray-600">10:15</td>
-                      <td className="p-4"><span className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-xs font-bold">כפתור מצוקה הופעל (SOS)</span></td>
-                      <td className="p-4 font-mono text-gray-600">ROOM-992</td>
-                      <td className="p-4"><span className="text-green-600 font-bold flex items-center gap-1"><CheckCircle className="w-4 h-4"/> טופל ע"י T&S-04</span></td>
-                      <td className="p-4"><button className="text-blue-600 font-bold hover:underline">צפה בהקלטה המוצפנת</button></td>
-                    </tr>
-                    <tr className="hover:bg-gray-50 transition-colors">
-                      <td className="p-4 text-gray-600">09:30</td>
-                      <td className="p-4"><span className="bg-red-100 text-red-800 px-3 py-1 rounded-full text-xs font-bold">מילת מפתח חסומה (AI)</span></td>
-                      <td className="p-4 font-mono text-gray-600">ROOM-104</td>
-                      <td className="p-4 text-gray-500 font-medium">נסגר אוטומטית (ניתוק יזום)</td>
-                      <td className="p-4"><button className="text-blue-600 font-bold hover:underline">פרטים מורחבים</button></td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {/* טאב שגיאה לחיפוי */}
-          {activeTab === 'live_sessions' && (
-            <div className="flex flex-col items-center justify-center p-20 text-center animate-in zoom-in">
-              <Video className="w-16 h-16 text-gray-300 mb-4" />
-              <h2 className="text-xl font-bold text-gray-700 mb-2">מערכת הניטור בפיתוח</h2>
-              <p className="text-gray-500">תצוגת רשת החדרים החיים תחובר בשלב ב' של הפרויקט.</p>
-            </div>
-          )}
-
-        </main>
+        </div>
       </div>
     </div>
   );
