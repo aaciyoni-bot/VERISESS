@@ -56,7 +56,7 @@ export default function PokerLobby() {
               <p className="text-slate-400 text-sm">הגדר את חוקי המשחק עבור המועדון שלך</p>
             </div>
           </div>
-          <button onClick={() => setShowCreateModal(false)} className="text-slate-400 hover:text-white p-2">
+          <button onClick={() => setShowCreateModal(false)} className="text-slate-400 hover:text-white p-2 transition-colors">
             <X className="w-6 h-6" />
           </button>
         </div>
@@ -91,7 +91,7 @@ export default function PokerLobby() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-slate-400 text-xs mb-1">בליינדים (SB/BB)</label>
-                <select value={newTable.blinds} onChange={(e) => setNewTable({...newTable, blinds: e.target.value})} className="w-full bg-slate-900 border border-slate-700 text-white rounded-lg px-3 py-2 appearance-none">
+                <select value={newTable.blinds} onChange={(e) => setNewTable({...newTable, blinds: e.target.value})} className="w-full bg-slate-900 border border-slate-700 text-white rounded-lg px-3 py-2 appearance-none focus:outline-none focus:border-amber-500">
                   <option value="1/2">₪1 / ₪2</option>
                   <option value="5/10">₪5 / ₪10</option>
                   <option value="10/20">₪10 / ₪20</option>
@@ -100,11 +100,11 @@ export default function PokerLobby() {
               </div>
               <div>
                 <label className="block text-slate-400 text-xs mb-1">מינימום כניסה (Buy-in)</label>
-                <input type="number" value={newTable.minBuyIn} onChange={(e) => setNewTable({...newTable, minBuyIn: e.target.value})} className="w-full bg-slate-900 border border-slate-700 text-white rounded-lg px-3 py-2" />
+                <input type="number" value={newTable.minBuyIn} onChange={(e) => setNewTable({...newTable, minBuyIn: e.target.value})} className="w-full bg-slate-900 border border-slate-700 text-white rounded-lg px-3 py-2 focus:outline-none focus:border-amber-500" />
               </div>
               <div>
                 <label className="block text-slate-400 text-xs mb-1">מקסימום כניסה</label>
-                <input type="number" value={newTable.maxBuyIn} onChange={(e) => setNewTable({...newTable, maxBuyIn: e.target.value})} className="w-full bg-slate-900 border border-slate-700 text-white rounded-lg px-3 py-2" />
+                <input type="number" value={newTable.maxBuyIn} onChange={(e) => setNewTable({...newTable, maxBuyIn: e.target.value})} className="w-full bg-slate-900 border border-slate-700 text-white rounded-lg px-3 py-2 focus:outline-none focus:border-amber-500" />
               </div>
             </div>
           </div>
@@ -248,8 +248,8 @@ export default function PokerLobby() {
       {/* Footer */}
       <div className="mt-6 pt-6 border-t border-slate-800 flex flex-col md:flex-row justify-between items-center text-sm relative z-10 gap-4">
         <div className="flex gap-4">
-          <button className="flex items-center gap-2 text-slate-400 hover:text-white bg-slate-900 px-4 py-2 rounded-lg border border-slate-800"><Settings className="w-4 h-4"/> ניהול סוכנים (Agents)</button>
-          <button className="flex items-center gap-2 text-amber-500/80 hover:text-amber-400 bg-amber-500/10 px-4 py-2 rounded-lg border border-amber-500/20"><Shield className="w-4 h-4"/> בקרת אבטחה (God Mode)</button>
+          <button className="flex items-center gap-2 text-slate-400 hover:text-white bg-slate-900 px-4 py-2 rounded-lg border border-slate-800 transition-colors"><Settings className="w-4 h-4"/> ניהול סוכנים (Agents)</button>
+          <button className="flex items-center gap-2 text-amber-500/80 hover:text-amber-400 bg-amber-500/10 px-4 py-2 rounded-lg border border-amber-500/20 transition-colors"><Shield className="w-4 h-4"/> בקרת אבטחה (God Mode)</button>
         </div>
         <div className="text-slate-500 flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div> שרת RNG פעיל | גרסה 2.1.0
