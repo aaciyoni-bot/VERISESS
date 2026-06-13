@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, doc, setDoc, onSnapshot, collection } from 'firebase/firestore';
-import { ShieldCheck, DollarSign, Video, Clock, Activity, PhoneCall, CheckCircle2 } from 'lucide-react';
+import { ShieldCheck, DollarSign, Video, Clock, Activity, PhoneCall, AlertCircle, CreditCard, ExternalLink } from 'lucide-react';
 
-// חיבור לפיירבייס - במערכת אמיתית זה ישב בקובץ נפרד
+// חיבור לפיירבייס 
 let app, auth, db, appId;
 try {
   const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
@@ -22,6 +22,7 @@ export default function ProviderDashboard() {
   const [isOnline, setIsOnline] = useState(false);
   const [activeSessions, setActiveSessions] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isConnectingStripe, setIsConnectingStripe] = useState(false);
 
   // מאזין למשתמש המחובר
   useEffect(() => {
@@ -33,11 +34,10 @@ export default function ProviderDashboard() {
     return () => unsubscribeAuth();
   }, []);
 
-  // מושך נתונים מהמסד (פרופיל וסשנים פעילים)
+  // מושך נתונים מהמסד
   useEffect(() => {
     if (!user || !db) return;
     
-    // משיכת נתוני הפרופיל (כדי לדעת אם הוא מחובר או לא)
     const providerRef = doc(db, 'artifacts', appId, 'public', 'data', 'providers', user.uid);
     const unsubscribeProvider = onSnapshot(providerRef, (docSnap) => {
       if (docSnap.exists()) {
@@ -48,7 +48,6 @@ export default function ProviderDashboard() {
       setIsLoading(false);
     });
 
-    // משיכת סשנים פעילים (SOS) שמחכים למטפל הזה
     const sessionsRef = collection(db, 'artifacts', appId, 'public', 'data', 'sessions');
     const unsubscribeSessions = onSnapshot(sessionsRef, (snapshot) => {
       const sessions = snapshot.docs
@@ -63,17 +62,39 @@ export default function ProviderDashboard() {
     };
   }, [user]);
 
-  // פעולת מתג ה-SOS
+  // פעולת חיבור ל-Stripe (סימולציה של ניתוב לשרת שלנו שמייצר לינק לאונבורדינג)
+  const handleConnectStripe = async () => {
+    setIsConnectingStripe(true);
+    // בפרודקשן: כאן תהיה קריאה לשרת (Cloud Function) שמשתמש ב-Secret Key
+    // השרת יחזיר URL של Stripe ואנחנו נעשה window.location.href = url
+    
+    // סימולציה לצורך הפיילוט (נדמה כאילו המטפל חזר בהצלחה מ-Stripe):
+    setTimeout(async () => {
+      if (user && db) {
+        const providerRef = doc(db, 'artifacts', appId, 'public', 'data', 'providers', user.uid);
+        await setDoc(providerRef, { stripeConnected: true }, { merge: true });
+        setIsConnectingStripe(false);
+      }
+    }, 2000);
+  };
+
   const toggleOnlineStatus = async () => {
     if (!user || !db) return;
+    
+    // חסימה: אי אפשר להיות אונליין אם לא חיברת חשבון בנק!
+    if (!providerData?.stripeConnected) {
+      alert("עליך לחבר חשבון בנק (Stripe) לפני שתוכל לקבל שיחות בתשלום.");
+      return;
+    }
+
     const newStatus = !isOnline;
-    setIsOnline(newStatus); // עדכון מיידי ויזואלי
+    setIsOnline(newStatus); 
     try {
       const providerRef = doc(db, 'artifacts', appId, 'public', 'data', 'providers', user.uid);
       await setDoc(providerRef, { isOnline: newStatus }, { merge: true });
     } catch (error) {
       console.error("Error updating status:", error);
-      setIsOnline(!newStatus); // במקרה של שגיאה, נחזיר את המתג
+      setIsOnline(!newStatus); 
     }
   };
 
@@ -95,6 +116,9 @@ export default function ProviderDashboard() {
     );
   }
 
+  // בדיקה אם המטפל סיים להגדיר את חשבון הבנק שלו
+  const hasStripeAccount = providerData.stripeConnected;
+
   return (
     <div className="bg-gray-50 h-full w-full px-4 pt-8" dir="rtl">
       
@@ -105,18 +129,51 @@ export default function ProviderDashboard() {
           <p className="text-gray-500">לוח הבקרה שלך מעודכן להיום.</p>
         </div>
         
-        <div className={`p-4 rounded-2xl flex items-center gap-4 transition-all border-2 shadow-sm ${isOnline ? 'bg-white border-green-500' : 'bg-gray-100 border-gray-200'}`}>
+        <div className={`p-4 rounded-2xl flex items-center gap-4 transition-all border-2 shadow-sm ${isOnline ? 'bg-white border-green-500' : 'bg-gray-100 border-gray-200'} ${!hasStripeAccount ? 'opacity-60 grayscale cursor-not-allowed' : ''}`}>
           <div className="flex flex-col">
             <span className={`font-bold ${isOnline ? 'text-green-700' : 'text-gray-500'}`}>
               {isOnline ? 'זמין לקריאות SOS' : 'לא זמין כעת'}
             </span>
+            {!hasStripeAccount && <span className="text-xs text-red-500 font-bold">נדרש חיבור חשבון בנק</span>}
           </div>
-          <label className="relative inline-flex items-center cursor-pointer">
-            <input type="checkbox" className="sr-only peer" checked={isOnline} onChange={toggleOnlineStatus} />
+          <label className={`relative inline-flex items-center ${hasStripeAccount ? 'cursor-pointer' : 'cursor-not-allowed'}`}>
+            <input type="checkbox" className="sr-only peer" checked={isOnline} onChange={toggleOnlineStatus} disabled={!hasStripeAccount} />
             <div className="w-14 h-7 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:right-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-green-500"></div>
           </label>
         </div>
       </div>
+
+      {/* !!! חסימת תשלומים (Stripe Onboarding) !!! */}
+      {!hasStripeAccount && (
+        <div className="max-w-6xl mx-auto mb-8 bg-yellow-50 border border-yellow-200 rounded-2xl p-6 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="flex items-start gap-4">
+            <div className="bg-yellow-100 p-3 rounded-full mt-1">
+              <AlertCircle className="w-6 h-6 text-yellow-600" />
+            </div>
+            <div>
+              <h3 className="font-bold text-yellow-800 text-lg">חסר אמצעי לקבלת תשלום</h3>
+              <p className="text-yellow-700 text-sm mt-1 max-w-xl">
+                כדי שתוכל לקבל קריאות SOS ולקבל תשלום מלקוחות, עליך לחבר את חשבון הבנק שלך באמצעות פלטפורמת הסליקה המאובטחת שלנו (Stripe). התהליך לוקח פחות מ-2 דקות.
+              </p>
+            </div>
+          </div>
+          <button 
+            onClick={handleConnectStripe}
+            disabled={isConnectingStripe}
+            className="flex-shrink-0 w-full md:w-auto bg-blue-900 hover:bg-blue-800 text-white font-bold py-3 px-6 rounded-xl flex items-center justify-center gap-2 transition-colors shadow-md"
+          >
+            {isConnectingStripe ? (
+              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+            ) : (
+              <>
+                <CreditCard className="w-5 h-5" /> 
+                חבר חשבון בנק
+                <ExternalLink className="w-4 h-4 mr-1 opacity-70" />
+              </>
+            )}
+          </button>
+        </div>
+      )}
 
       {/* התראה על סשן חי (SOS נכנס) */}
       {activeSessions.length > 0 && (
@@ -131,11 +188,12 @@ export default function ProviderDashboard() {
         </div>
       )}
 
-      {/* קוביות סטטיסטיקה */}
+      {/* קוביות סטטיסטיקה - ארנק מטפל */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 max-w-6xl mx-auto">
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 relative overflow-hidden">
+          {hasStripeAccount && <div className="absolute top-0 right-0 bg-green-500 text-white text-[10px] font-bold px-2 py-1 rounded-bl-lg">מחובר לבנק</div>}
           <div className="bg-blue-50 p-3 rounded-xl text-blue-600 inline-block mb-4"><DollarSign className="w-6 h-6" /></div>
-          <p className="text-gray-500 text-sm font-medium mb-1">הכנסות החודש</p>
+          <p className="text-gray-500 text-sm font-medium mb-1">הכנסות החודש (נטו)</p>
           <h3 className="text-3xl font-bold text-gray-900">₪0.00</h3>
         </div>
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
