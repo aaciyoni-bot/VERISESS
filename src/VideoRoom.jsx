@@ -5,13 +5,9 @@ import { getFirestore, doc, onSnapshot, updateDoc, arrayUnion } from 'firebase/f
 import { 
   ShieldCheck, Video, VideoOff, Mic, MicOff, Clock, 
   PhoneCall, MessageSquare, PenTool, AlertTriangle, Send, 
-  Users, UserPlus, Crown, Gamepad2, Dices, Eraser, Trash2,
-  Coins, Eye, EyeOff
+  Users, UserPlus, Gamepad2, Dices, Eraser, Trash2, Coins, Eye, EyeOff, Crown
 } from 'lucide-react';
 
-// ==========================================
-// 1. חיבורים ל-Firebase
-// ==========================================
 let app, auth, db, appId;
 try {
   const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
@@ -23,9 +19,6 @@ try {
   console.error("Firebase Init Error:", error);
 }
 
-// ==========================================
-// 2. ווידג'ט לוח לבן פנימי
-// ==========================================
 const WhiteboardWidget = () => {
   const canvasRef = useRef(null);
   const contextRef = useRef(null);
@@ -131,9 +124,6 @@ const WhiteboardWidget = () => {
   );
 };
 
-// ==========================================
-// 3. מנוע פוקר פנימי (PLO5)
-// ==========================================
 const PokerWidget = ({ isHost }) => {
   const [pot, setPot] = useState(1550);
   const [godMode, setGodMode] = useState(false);
@@ -219,16 +209,12 @@ const PokerWidget = ({ isHost }) => {
   );
 };
 
-
-// ==========================================
-// 4. החדר החכם הראשי (VideoRoom)
-// ==========================================
-// קטגוריית ברירת מחדל לבדיקה 'gaming'.
+// שים לב ל-category! אם זה gaming, יוצגו משחקים. אם זה therapy, יוצג לוח לבן.
 export default function VideoRoom({ sessionId, onLeave, isProvider = true, category = 'gaming' }) {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   
-  // הטאב הראשון שיוצג ייקבע לפי סוג הפגישה
+  // קובע איזה טאב יפתח ראשון לפי הקטגוריה
   const [activeTab, setActiveTab] = useState(category === 'gaming' ? 'poker' : 'chat'); 
   
   const [micEnabled, setMicEnabled] = useState(true);
@@ -242,6 +228,7 @@ export default function VideoRoom({ sessionId, onLeave, isProvider = true, categ
     { id: 'p1', name: 'משתתף 1', isLocal: false, img: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?ixlib=rb-4.0.3&w=1000&q=80' }
   ]);
 
+  // כפתור סימולציה להוספת שחקנים (כדי לראות איך המסך מתפצל לגריד)
   const addTestParticipant = () => {
     setParticipants(prev => [
       ...prev, 
@@ -286,7 +273,7 @@ export default function VideoRoom({ sessionId, onLeave, isProvider = true, categ
     }
   };
 
-  // מנוע תצוגה חכם (Grid vs PiP)
+  // מנוע תצוגת הוידאו: חכם מספיק לעבור מ-1 על 1 (תמונה קטנה בצד) למצב של קבוצה (משבצות)
   const renderVideoLayout = () => {
     if (participants.length <= 2) {
       const remoteParticipant = participants.find(p => !p.isLocal) || participants[0];
@@ -322,7 +309,7 @@ export default function VideoRoom({ sessionId, onLeave, isProvider = true, categ
   return (
     <div className="max-w-7xl mx-auto my-4 bg-gray-900 rounded-2xl overflow-hidden shadow-2xl h-[85vh] flex relative border border-gray-800" dir="rtl">
       
-      {/* --- אזור הוידאו המרכזי --- */}
+      {/* 1. אזור הוידאו השמאלי */}
       <div className="flex-1 relative bg-black flex items-center justify-center overflow-hidden">
         <div className="absolute top-4 left-4 z-30 flex items-center gap-2">
           <div className="bg-black/60 text-white px-4 py-2 rounded-lg backdrop-blur-sm flex items-center gap-2 border border-gray-700">
@@ -332,12 +319,13 @@ export default function VideoRoom({ sessionId, onLeave, isProvider = true, categ
 
         <div className="absolute top-4 right-4 z-30 flex gap-2">
            <button onClick={addTestParticipant} className="bg-blue-600/80 hover:bg-blue-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold backdrop-blur-sm border border-blue-400 flex items-center gap-1 transition-colors">
-             <UserPlus className="w-4 h-4" /> הכנס שחקן נוסף
+             <UserPlus className="w-4 h-4" /> סמלץ שחקן נוסף (בדיקה)
            </button>
         </div>
 
         {renderVideoLayout()}
 
+        {/* סרגל שליטה תחתון */}
         <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-gray-900/90 backdrop-blur-md px-8 py-3 rounded-full flex gap-4 z-30 border border-gray-700 shadow-2xl">
           <button onClick={() => toggleMedia('audio')} className={`p-4 rounded-full transition-colors ${micEnabled ? 'bg-gray-700 text-white' : 'bg-red-500/20 text-red-500'}`}>
             {micEnabled ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
@@ -347,21 +335,21 @@ export default function VideoRoom({ sessionId, onLeave, isProvider = true, categ
           </button>
           <div className="w-px h-8 bg-gray-700 mx-2 self-center"></div>
           <button onClick={handleEndCall} className="p-4 bg-red-600 hover:bg-red-700 rounded-full text-white font-bold px-6 flex items-center gap-2 shadow-lg">
-             <PhoneCall className="w-5 h-5 transform rotate-[135deg]" /> עזוב
+             <PhoneCall className="w-5 h-5 transform rotate-[135deg]" /> עזוב חדר
           </button>
         </div>
       </div>
 
-      {/* --- פאנל ימני מודע-הקשר (Context-Aware Tabs) --- */}
+      {/* 2. אזור הווידג'טים הימני (הדינמי) */}
       <div className="w-96 bg-gray-50 flex flex-col z-20 border-l border-gray-200">
         
-        {/* ניווט שמציג טאבים לפי הקטגוריה של החדר */}
+        {/* שורת הטאבים - משתנה לפי סוג החדר */}
         <div className="flex flex-wrap bg-white border-b border-gray-200 p-1">
           <button onClick={() => setActiveTab('chat')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-1.5 ${activeTab === 'chat' ? 'bg-teal-50 text-teal-700' : 'text-gray-500 hover:bg-gray-50'}`}>
             <MessageSquare className="w-4 h-4" /> צ'אט
           </button>
           
-          {/* הטאבים האלו יופיעו רק בחדרי ייעוץ/פסיכולוגיה */}
+          {/* מציג לוח לבן רק לפסיכולוגים ויועצים */}
           {(category === 'therapy' || category === 'business') && (
             <>
               <button onClick={() => setActiveTab('whiteboard')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-1.5 ${activeTab === 'whiteboard' ? 'bg-teal-50 text-teal-700' : 'text-gray-500 hover:bg-gray-50'}`}>
@@ -369,13 +357,13 @@ export default function VideoRoom({ sessionId, onLeave, isProvider = true, categ
               </button>
               {isProvider && (
                 <button onClick={() => setActiveTab('notes')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-1.5 ${activeTab === 'notes' ? 'bg-teal-50 text-teal-700' : 'text-gray-500 hover:bg-gray-50'}`}>
-                  <ShieldCheck className="w-4 h-4" /> הערות
+                  <ShieldCheck className="w-4 h-4" /> הערות חסויות
                 </button>
               )}
             </>
           )}
 
-          {/* הטאבים האלו יופיעו רק בחדרי חוגים/משחקים */}
+          {/* מציג משחקים רק לקטגוריית גיימינג */}
           {category === 'gaming' && (
             <>
               <button onClick={() => setActiveTab('poker')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-1.5 ${activeTab === 'poker' ? 'bg-amber-100 text-amber-700 border border-amber-200 shadow-sm' : 'text-gray-500 hover:bg-gray-50'}`}>
@@ -391,7 +379,7 @@ export default function VideoRoom({ sessionId, onLeave, isProvider = true, categ
           )}
         </div>
 
-        {/* --- תוכן הטאבים --- */}
+        {/* התוכן של הטאב הנבחר */}
         <div className="flex-1 overflow-hidden p-3 bg-gray-50 flex flex-col">
           
           {activeTab === 'chat' && (
@@ -406,21 +394,21 @@ export default function VideoRoom({ sessionId, onLeave, isProvider = true, categ
             </div>
           )}
 
+          {/* טעינת הרכיבים החיצוניים */}
           {activeTab === 'whiteboard' && <div className="h-full w-full"><WhiteboardWidget /></div>}
           
-          {/* הטאב של הפוקר מפעיל את הפוקר הפנימי שלנו */}
           {activeTab === 'poker' && (
-            <div className="h-full w-full p-2 bg-slate-950 rounded-xl">
+            <div className="h-full w-full bg-slate-950 rounded-xl overflow-hidden shadow-lg border border-slate-800">
+              {/* כאן אנחנו קוראים למסך הפוקר הוויזואלי שיצרנו */}
               <PokerWidget isHost={isProvider} />
             </div>
           )}
 
-          {/* משחקים עתידיים שיפותחו */}
           {(activeTab === 'rummikub' || activeTab === 'chess') && (
             <div className="h-full w-full p-6 bg-gray-100 rounded-xl flex flex-col items-center justify-center text-center border-2 border-dashed border-gray-300">
                <Gamepad2 className="w-16 h-16 text-gray-300 mb-4" />
                <h3 className="font-bold text-gray-700 text-lg mb-2">מנוע {activeTab === 'chess' ? 'השחמט' : 'הרמיקוב'} בבנייה</h3>
-               <p className="text-sm text-gray-500">הלוח האינטראקטיבי יתווסף בשלב ב' של מפת הדרכים.</p>
+               <p className="text-sm text-gray-500">הלוח האינטראקטיבי יפותח בקרוב.</p>
             </div>
           )}
 
@@ -430,7 +418,7 @@ export default function VideoRoom({ sessionId, onLeave, isProvider = true, categ
                 <AlertTriangle className="w-5 h-5 flex-shrink-0" />
                 <div>המשתתפים אינם רואים את הנכתב כאן.</div>
               </div>
-              <textarea className="flex-1 w-full p-4 rounded-xl border border-gray-200 focus:outline-none focus:border-teal-500 resize-none shadow-inner bg-white" placeholder="הקלד הערות..."></textarea>
+              <textarea className="flex-1 w-full p-4 rounded-xl border border-gray-200 focus:outline-none focus:border-teal-500 resize-none shadow-inner bg-white" placeholder="הקלד הערות פרטיות..."></textarea>
             </div>
           )}
 
