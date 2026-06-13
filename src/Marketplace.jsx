@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, onSnapshot, query, where } from 'firebase/firestore';
+import { getFirestore, collection, onSnapshot } from 'firebase/firestore';
 import { 
   Search, Filter, Star, Clock, ShieldCheck, 
   ChevronRight, PhoneCall, Video, User
@@ -23,14 +23,15 @@ try {
 // ==========================================
 // 2. קומפוננטת קטלוג המומחים (Marketplace)
 // ==========================================
-export default function Marketplace() {
+// שים לב: הוספתי את onSelectExpert לפרופס
+export default function Marketplace({ onSelectExpert }) {
   const [experts, setExperts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   
   // מצבי סינון וחיפוש
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const [sosOnly, setSosOnly] = useState(false); // הצג רק מחוברים עכשיו
+  const [sosOnly, setSosOnly] = useState(false);
 
   const categories = [
     { id: 'all', name: 'הכל' },
@@ -38,14 +39,15 @@ export default function Marketplace() {
     { id: 'psychology', name: 'פסיכולוגיה' },
     { id: 'sleep', name: 'ייעוץ שינה והורות' },
     { id: 'addiction', name: 'גמילה' },
+    { id: 'gaming', name: 'חדרי משחק (פוקר/D&D)' }, // הוספתי גם גיימינג כדי שיהיה קל לבדוק
     { id: 'mysticism', name: 'רוחניות ותקשור' }
   ];
 
   // משיכת הנתונים בזמן אמת מ-Firebase
   useEffect(() => {
+    if (!db) return;
     const providersRef = collection(db, 'artifacts', appId, 'public', 'data', 'providers');
     
-    // האזנה אקטיבית למסד הנתונים - כל פעם שמטפל משנה סטטוס, הרשימה תתעדכן!
     const unsubscribe = onSnapshot(providersRef, (snapshot) => {
       const providersData = snapshot.docs.map(doc => ({
         id: doc.id,
@@ -76,7 +78,6 @@ export default function Marketplace() {
       
       {/* אזור החיפוש העליון (Hero Section) */}
       <div className="bg-blue-900 text-white pt-12 pb-8 px-4 rounded-b-3xl shadow-lg mb-8 relative overflow-hidden">
-        {/* רקע דקורטיבי */}
         <div className="absolute top-0 right-0 opacity-10 pointer-events-none">
           <ShieldCheck className="w-64 h-64 -mt-10 -mr-10" />
         </div>
@@ -85,7 +86,6 @@ export default function Marketplace() {
           <h1 className="text-3xl md:text-4xl font-bold mb-4">מצא את המומחה שאתה צריך. <span className="text-teal-400">עכשיו.</span></h1>
           <p className="text-blue-200 mb-8 max-w-2xl mx-auto">מערכת VeriSess מבטיחה לך שיחות וידאו מאובטחות, מוצפנות ופרטיות לחלוטין עם המומחים המובילים בישראל.</p>
           
-          {/* שורת חיפוש מרכזית */}
           <div className="bg-white rounded-full p-2 flex items-center shadow-xl max-w-2xl mx-auto">
             <div className="bg-blue-50 p-3 rounded-full text-blue-900 mr-1">
               <Search className="w-5 h-5" />
@@ -106,14 +106,13 @@ export default function Marketplace() {
 
       <div className="max-w-6xl mx-auto px-4 flex flex-col md:flex-row gap-8">
         
-        {/* צד ימין: סרגל סינון (Filters) */}
+        {/* סרגל סינון (Filters) */}
         <div className="w-full md:w-64 flex-shrink-0">
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 sticky top-6">
             <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
               <Filter className="w-5 h-5 text-teal-500" /> סינון תוצאות
             </h3>
             
-            {/* מתג SOS חכם */}
             <div className="mb-6 bg-red-50 p-4 rounded-xl border border-red-100">
               <label className="flex items-center justify-between cursor-pointer">
                 <div>
@@ -143,11 +142,11 @@ export default function Marketplace() {
           </div>
         </div>
 
-        {/* צד שמאל: רשימת המומחים (Grid) */}
+        {/* רשימת המומחים */}
         <div className="flex-1">
           <div className="mb-4 flex justify-between items-end">
             <h2 className="text-xl font-bold text-gray-800">
-              תוצאות חיפוש <span className="text-gray-400 font-normal text-sm">({filteredExperts.length} מומחים נמצאו)</span>
+              תוצאות חיפוש <span className="text-gray-400 font-normal text-sm">({filteredExperts.length} נמצאו)</span>
             </h2>
           </div>
 
@@ -158,7 +157,7 @@ export default function Marketplace() {
           ) : filteredExperts.length === 0 ? (
             <div className="bg-white rounded-2xl border border-dashed border-gray-300 p-12 text-center">
               <User className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-lg font-bold text-gray-700 mb-2">לא נמצאו מומחים</h3>
+              <h3 className="text-lg font-bold text-gray-700 mb-2">לא נמצאו תוצאות</h3>
               <p className="text-gray-500">נסה לשנות את מילות החיפוש או לבטל את סינון ה-SOS.</p>
               <button onClick={() => {setSearchQuery(''); setSosOnly(false); setSelectedCategory('all');}} className="mt-4 text-teal-600 font-medium hover:underline">
                 נקה סינונים
@@ -167,9 +166,8 @@ export default function Marketplace() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {filteredExperts.map(expert => (
-                <div key={expert.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-shadow relative overflow-hidden group">
+                <div key={expert.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-shadow relative overflow-hidden">
                   
-                  {/* תו תג SOS / מחובר */}
                   {expert.isOnline && (
                     <div className="absolute top-4 left-4 flex items-center gap-1.5 bg-green-50 text-green-700 px-2.5 py-1 rounded-full text-xs font-bold border border-green-200">
                       <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
@@ -188,7 +186,7 @@ export default function Marketplace() {
                       
                       <div className="flex items-center gap-3 text-sm text-gray-600">
                         <div className="flex items-center gap-1 font-medium text-amber-500">
-                          <Star className="w-4 h-4 fill-current" /> {expert.rating || 'חדש'}
+                          <Star className="w-4 h-4 fill-current" /> {expert.rating || '5.0'}
                         </div>
                         <div className="flex items-center gap-1">
                           <Clock className="w-4 h-4" /> 45 דק'
@@ -197,7 +195,6 @@ export default function Marketplace() {
                     </div>
                   </div>
 
-                  {/* אזור תגיות */}
                   <div className="mt-4 flex flex-wrap gap-2">
                     {(expert.tags || []).slice(0, 3).map((tag, idx) => (
                       <span key={idx} className="bg-gray-50 text-gray-600 text-xs px-2 py-1 rounded-md border border-gray-100">
@@ -210,7 +207,11 @@ export default function Marketplace() {
                     <div className="font-bold text-xl text-teal-600">
                       ₪{expert.rate}
                     </div>
-                    <button className={`px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 transition-transform active:scale-95 ${expert.isOnline ? 'bg-red-500 hover:bg-red-600 text-white shadow-md shadow-red-500/20' : 'bg-blue-50 text-blue-900 hover:bg-blue-100'}`}>
+                    {/* הפעלת onSelectExpert בלחיצה */}
+                    <button 
+                      onClick={() => onSelectExpert && onSelectExpert(expert.id, expert.category === 'gaming' ? 'gaming' : 'therapy')}
+                      className={`px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 transition-transform active:scale-95 ${expert.isOnline ? 'bg-red-500 hover:bg-red-600 text-white shadow-md shadow-red-500/20' : 'bg-blue-50 text-blue-900 hover:bg-blue-100'}`}
+                    >
                       {expert.isOnline ? (
                         <><PhoneCall className="w-4 h-4" /> שיחת SOS</>
                       ) : (
