@@ -127,7 +127,7 @@ export default function AdminPanel() {
           
           <div className="w-full h-px bg-gray-800 my-2"></div>
           
-          {/* הטאב החדש שהוספנו: ניהול ואישור מטפלים */}
+          {/* ניהול ואישור מטפלים */}
           <button 
             onClick={() => setActiveTab('users')}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors font-medium ${activeTab === 'users' ? 'bg-gray-800 text-white border-r-4 border-red-500' : 'text-gray-400 hover:bg-gray-800 hover:text-white'}`}
@@ -170,7 +170,7 @@ export default function AdminPanel() {
         {/* תוכן מתחלף */}
         <main className="flex-1 overflow-y-auto p-8">
           
-          {/* פופ-אפ התראת AI חיה - קופץ מתי שיש זיהוי עקיפה */}
+          {/* פופ-אפ התראת AI חיה */}
           {simulatedAlert && (
             <div className="mb-8 bg-red-50 border border-red-200 rounded-xl shadow-lg flex flex-col md:flex-row items-start md:items-center justify-between overflow-hidden animate-in slide-in-from-top-4">
               <div className="flex items-start gap-4 p-5">
@@ -228,7 +228,7 @@ export default function AdminPanel() {
             </div>
           )}
 
-          {/* טאב 2: אישור מטפלים (KYC) - *** הפיצ'ר החדש! *** */}
+          {/* טאב 2: אישור מטפלים */}
           {activeTab === 'users' && (
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden animate-in fade-in">
               <div className="p-5 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
