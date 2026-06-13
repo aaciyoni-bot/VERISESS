@@ -1,18 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { initializeApp } from 'firebase/app';
-import { getAuth, onAuthStateChanged, signOut, signInAnonymously } from 'firebase/auth';
-import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
+import { getFirestore, doc, onSnapshot, updateDoc, arrayUnion } from 'firebase/firestore';
 import { 
-  ShieldCheck, LogOut, LayoutDashboard, Video, VideoOff, Mic, MicOff, 
-  Clock, PhoneCall, MessageSquare, PenTool, Users, ShieldAlert, 
-  UserPlus, Check, X, MonitorUp, Hand, AlertTriangle, Activity, 
-  Lock, Search, Eye, CheckCircle, Bell, FileText, XCircle, 
-  DollarSign, Wallet, ArrowDownCircle, CheckCircle2, CreditCard, 
-  ChevronRight, Smartphone
+  ShieldCheck, Video, VideoOff, Mic, MicOff, Clock, 
+  PhoneCall, MessageSquare, PenTool, AlertTriangle, Send, 
+  Eraser, Trash2, Users, UserPlus, Check, X, LayoutGrid, Maximize,
+  Coins, Eye, EyeOff, Crown
 } from 'lucide-react';
 
 // ==========================================
-// 1. אתחול פיירבייס גלובלי (עבור כל המסכים)
+// 1. חיבורים ל-Firebase
 // ==========================================
 let app, auth, db, appId;
 try {
@@ -26,385 +24,518 @@ try {
 }
 
 // ==========================================
-// 2. מסכי המערכת (הוכנסו לקובץ אחד כדי למנוע שגיאות ייבוא)
+// 2. רכיב הלוח הלבן הפנימי
 // ==========================================
-
-const Marketplace = ({ onSelectExpert }) => (
-  <div className="p-8 max-w-6xl mx-auto min-h-screen" dir="rtl">
-    <h2 className="text-3xl font-bold text-blue-900 mb-6 flex items-center gap-2">
-      <ShieldCheck className="w-8 h-8 text-teal-500" />
-      קטלוג מומחים זמינים (SOS)
-    </h2>
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-      {[1, 2, 3].map((i) => (
-        <div key={i} className="bg-white rounded-2xl p-6 shadow-md border border-gray-100 flex flex-col items-center text-center">
-          <div className="w-24 h-24 bg-gradient-to-tr from-blue-100 to-teal-100 text-teal-600 rounded-full flex items-center justify-center font-bold text-3xl mb-4 shadow-sm">
-            {i === 1 ? 'ד' : i === 2 ? 'ע' : 'י'}
-          </div>
-          <h3 className="text-xl font-bold text-gray-800">{i === 1 ? 'ד"ר יעל שרת' : i === 2 ? 'עו"ד דניאל כהן' : 'יצחק לוי (יועץ זוגי)'}</h3>
-          <p className="text-gray-500 text-sm mb-2">{i === 1 ? 'פסיכולוגיה קלינית' : i === 2 ? 'דיני משפחה' : 'גישור ומשברים'}</p>
-          <div className="flex items-center gap-1 text-green-500 text-xs font-bold bg-green-50 px-3 py-1 rounded-full mb-6">
-            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div> זמין עכשיו לשיחה
-          </div>
-          <button onClick={() => onSelectExpert(`expert_${i}`)} className="w-full bg-teal-500 hover:bg-teal-600 text-white font-bold py-3 rounded-xl transition-colors shadow-md">
-            התייעץ עכשיו (₪{150 + (i * 50)})
-          </button>
-        </div>
-      ))}
-    </div>
-  </div>
-);
-
-const ProviderOnboarding = () => (
-  <div className="p-8 max-w-md mx-auto mt-10 bg-white rounded-2xl shadow-xl border border-gray-100 text-center" dir="rtl">
-    <ShieldCheck className="w-16 h-16 text-blue-900 mx-auto mb-4" />
-    <h2 className="text-2xl font-bold mb-2">הרשמת מטפלים (KYC)</h2>
-    <p className="text-gray-500 text-sm mb-6">אנא הזן את פרטי הרישיון שלך לאימות מערכת</p>
-    <input type="text" placeholder="שם מלא" className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 mb-4 focus:outline-none focus:border-blue-500" />
-    <input type="text" placeholder="מספר רישיון / תעודה" className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 mb-6 focus:outline-none focus:border-blue-500" />
-    <button className="w-full bg-blue-900 hover:bg-blue-800 text-white font-bold py-3 rounded-xl transition-colors">שלח לבדיקת Trust & Safety</button>
-  </div>
-);
-
-const VideoRoom = ({ sessionId, onLeave }) => (
-  <div className="p-4 h-[85vh]" dir="rtl">
-    <div className="bg-gray-900 w-full h-full rounded-2xl flex flex-col items-center justify-center relative overflow-hidden text-white shadow-2xl border border-gray-800">
-       <div className="absolute top-4 right-4 flex gap-2">
-          <span className="bg-red-500 text-white px-3 py-1 rounded-full text-xs font-bold animate-pulse flex items-center gap-2"><Video className="w-4 h-4"/> LIVE E2EE</span>
-       </div>
-       <Video className="w-20 h-20 text-gray-700 mb-6" />
-       <h2 className="text-2xl font-bold mb-2">חדר טיפול חסוי 1-על-1</h2>
-       <p className="text-gray-500 mb-8 font-mono bg-black/50 px-4 py-2 rounded-lg">Session ID: {sessionId}</p>
-       <button onClick={onLeave} className="px-8 py-3 bg-red-600 hover:bg-red-700 rounded-xl font-bold flex items-center gap-2 transition-colors shadow-lg">
-         <PhoneCall className="w-5 h-5 transform rotate-[135deg]" /> נתק שיחה וסיים סשן
-       </button>
-    </div>
-  </div>
-);
-
-const ProviderDashboard = () => {
-  const [availableBalance, setAvailableBalance] = useState(3450.00); 
-  const [isWithdrawing, setIsWithdrawing] = useState(false);
-  const [withdrawalSuccess, setWithdrawalSuccess] = useState(false);
-  const [isOnline, setIsOnline] = useState(false);
-
-  const handleWithdrawal = () => {
-    if (availableBalance <= 0) return;
-    setIsWithdrawing(true);
-    setTimeout(() => {
-      setIsWithdrawing(false);
-      setWithdrawalSuccess(true);
-      setAvailableBalance(0);
-      setTimeout(() => setWithdrawalSuccess(false), 5000);
-    }, 2000);
-  };
-
-  return (
-    <div className="max-w-6xl mx-auto px-4 pt-8 min-h-screen" dir="rtl">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-800">שלום, ד"ר יעל שרת</h1>
-          <p className="text-gray-500">לוח הבקרה שלך מעודכן להיום.</p>
-        </div>
-        <div className={`p-4 rounded-2xl flex items-center gap-4 transition-all border-2 shadow-sm ${isOnline ? 'bg-white border-green-500' : 'bg-gray-100 border-gray-200'}`}>
-          <div className="flex flex-col">
-            <span className={`font-bold ${isOnline ? 'text-green-700' : 'text-gray-500'}`}>
-              {isOnline ? 'זמין לקריאות SOS' : 'לא זמין כעת'}
-            </span>
-          </div>
-          <label className="relative inline-flex items-center cursor-pointer">
-            <input type="checkbox" className="sr-only peer" checked={isOnline} onChange={() => setIsOnline(!isOnline)} />
-            <div className="w-14 h-7 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:right-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-green-500"></div>
-          </label>
-        </div>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="bg-white rounded-2xl p-6 shadow-md border-2 border-blue-900 flex flex-col justify-between relative overflow-hidden">
-          <div className="absolute -left-6 -top-6 opacity-5 pointer-events-none"><Wallet className="w-32 h-32 text-blue-900" /></div>
-          <div className="flex justify-between items-start mb-4 relative z-10">
-            <div className="bg-blue-900 p-3 rounded-xl text-white shadow-sm"><DollarSign className="w-6 h-6" /></div>
-            <span className="bg-green-100 text-green-800 text-xs font-bold px-2 py-1 rounded-md border border-green-200">זמין למשיכה</span>
-          </div>
-          <div className="relative z-10 mb-4">
-            <p className="text-blue-900 text-sm font-bold mb-1">היתרה שלך (נטו)</p>
-            <h3 className="text-4xl font-black text-gray-900">₪{availableBalance.toLocaleString()}</h3>
-          </div>
-          {withdrawalSuccess ? (
-            <div className="bg-green-50 border border-green-200 text-green-700 font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2">
-              <CheckCircle className="w-5 h-5" /> הכסף הועבר לבנק!
-            </div>
-          ) : (
-            <button onClick={handleWithdrawal} disabled={isWithdrawing || availableBalance === 0} className={`w-full py-3 px-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-sm ${availableBalance === 0 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : isWithdrawing ? 'bg-blue-100 text-blue-900' : 'bg-blue-900 hover:bg-blue-800 text-white'}`}>
-              {isWithdrawing ? 'מעבד העברה...' : <><ArrowDownCircle className="w-5 h-5" /> משוך לחשבון הבנק</>}
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const ClientCheckout = ({ expertId, onCancel, onSuccess }) => {
-  const [expert, setExpert] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isProcessing, setIsProcessing] = useState(false);
+const WhiteboardWidget = () => {
+  const canvasRef = useRef(null);
+  const contextRef = useRef(null);
+  const wrapperRef = useRef(null);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [color, setColor] = useState('#000000');
+  const [tool, setTool] = useState('pen');
 
   useEffect(() => {
-    // סימולציית נתונים כדי שהקופה תמיד תעבוד ותיראה טוב
-    setExpert({ id: expertId, displayName: 'ד"ר יעל שרת', category: 'פסיכולוגיה קלינית', rate: 250 });
-    setIsLoading(false);
-  }, [expertId]);
+    const initCanvas = () => {
+      const canvas = canvasRef.current;
+      const wrapper = wrapperRef.current;
+      if (!canvas || !wrapper) return;
 
-  const handlePaymentSubmit = async (e) => {
-    e.preventDefault();
-    setIsProcessing(true);
-    setTimeout(() => {
-      onSuccess(`sess_${Date.now()}`);
-    }, 1500);
-  };
+      const dpr = window.devicePixelRatio || 1;
+      const rect = wrapper.getBoundingClientRect();
+      
+      canvas.width = rect.width * dpr;
+      canvas.height = 400 * dpr; 
+      canvas.style.width = `${rect.width}px`;
+      canvas.style.height = `400px`;
 
-  if (isLoading || !expert) return <div className="p-12 text-center text-gray-500">טוען קופה...</div>;
-
-  return (
-    <div className="max-w-md mx-auto bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden relative" dir="rtl">
-      <button onClick={onCancel} className="absolute right-4 top-4 text-gray-400 hover:text-gray-600 bg-white/80 px-2 py-1 rounded-md text-sm z-10">חזור</button>
-      <div className="bg-gradient-to-b from-blue-50 to-white pt-10 pb-6 px-6 text-center border-b border-gray-100">
-        <Lock className="w-8 h-8 text-teal-500 mx-auto mb-2" />
-        <h2 className="text-2xl font-bold text-blue-900 mb-1">קופה מאובטחת</h2>
-        <p className="text-sm text-gray-500 font-medium">מסגרת האשראי תשוריין בלבד.</p>
-      </div>
-      <div className="p-6">
-        <div className="bg-white border border-gray-200 rounded-xl p-4 mb-6 shadow-sm flex items-center gap-4">
-          <div className="w-14 h-14 bg-blue-100 rounded-xl flex items-center justify-center text-blue-700 font-bold text-xl">{expert.displayName.charAt(0)}</div>
-          <div className="flex-1">
-            <div className="font-bold text-gray-800">{expert.displayName}</div>
-            <div className="text-xs text-gray-500">{expert.category}</div>
-          </div>
-          <div className="font-black text-2xl text-blue-900">₪{expert.rate}</div>
-        </div>
-        <button onClick={handlePaymentSubmit} disabled={isProcessing} className={`w-full py-4 rounded-xl font-bold text-lg text-white shadow-lg transition-all flex justify-center items-center gap-2 ${isProcessing ? 'bg-teal-400 cursor-not-allowed' : 'bg-teal-500 hover:bg-teal-600'}`}>
-          {isProcessing ? 'משריין סכום...' : <><Lock className="w-5 h-5" /> אשר והיכנס לשיחה</>}
-        </button>
-      </div>
-    </div>
-  );
-};
-
-const AdminPanel = () => {
-  const [activeTab, setActiveTab] = useState('users'); 
-  return (
-    <div className="min-h-[85vh] bg-gray-100 flex font-sans" dir="rtl">
-      <div className="w-64 bg-gray-900 text-white flex flex-col shadow-2xl z-20">
-        <div className="p-6 border-b border-gray-800">
-          <h2 className="font-bold text-lg flex items-center gap-2"><ShieldCheck className="text-red-500 w-6 h-6"/> Trust & Safety</h2>
-        </div>
-        <nav className="flex-1 p-4 space-y-2">
-          <button onClick={() => setActiveTab('users')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium ${activeTab === 'users' ? 'bg-gray-800 border-r-4 border-red-500' : 'text-gray-400 hover:bg-gray-800'}`}>
-            <Users className="w-5 h-5" /> אישור מטפלים (KYC)
-          </button>
-          <button onClick={() => setActiveTab('alerts')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-medium ${activeTab === 'alerts' ? 'bg-gray-800 border-r-4 border-red-500' : 'text-gray-400 hover:bg-gray-800'}`}>
-            <AlertTriangle className="w-5 h-5" /> יומן התראות AI
-          </button>
-        </nav>
-      </div>
-      <div className="flex-1 p-8 overflow-y-auto">
-        <h2 className="text-2xl font-bold text-gray-800 mb-6">{activeTab === 'users' ? 'ניהול מטפלים חדשים' : 'יומן התראות אבטחה'}</h2>
-        <div className="bg-white p-12 text-center rounded-2xl shadow-sm border border-gray-200">
-           <Activity className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-           <p className="text-gray-500">פאנל ניהול פעיל. נתונים יטענו מהענן.</p>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const GroupRoom = ({ sessionId, onLeave, isHost = true }) => {
-  const [activeTab, setActiveTab] = useState('participants');
-  const [micEnabled, setMicEnabled] = useState(true);
-  const [cameraEnabled, setCameraEnabled] = useState(true);
-  const [participants] = useState([
-    { id: 'me', name: 'אני (מנחה)', isHost: true, micOn: micEnabled, camOn: cameraEnabled, isLocal: true },
-    { id: 'p1', name: 'דניאל כהן', isHost: false, micOn: false, camOn: true, isLocal: false, img: '' },
-    { id: 'p2', name: 'יעל שרת', isHost: false, micOn: true, camOn: false, isLocal: false, img: '' },
-  ]);
-
-  return (
-    <div className="max-w-7xl mx-auto my-4 bg-gray-900 rounded-2xl overflow-hidden shadow-2xl h-[85vh] flex relative border border-gray-800" dir="rtl">
-      <div className="flex-1 relative bg-black flex flex-col overflow-hidden">
-        <div className="absolute top-4 right-4 z-20 flex gap-2">
-          <div className="bg-gray-800/80 backdrop-blur text-white px-3 py-1.5 rounded-lg text-sm border border-gray-700">חדר קבוצתי</div>
-        </div>
-        <div className="flex-1 p-4 mt-12 grid gap-4 grid-cols-2 grid-rows-2">
-          {participants.map((p) => (
-            <div key={p.id} className="bg-gray-800 rounded-xl overflow-hidden relative border border-gray-700">
-               <div className="absolute inset-0 flex items-center justify-center bg-gray-900 text-4xl font-bold text-gray-700">{p.name.charAt(0)}</div>
-               <div className="absolute bottom-3 right-3 bg-black/60 px-3 py-1.5 rounded-lg text-white text-sm">{p.name}</div>
-            </div>
-          ))}
-        </div>
-        <div className="bg-gray-900/95 p-4 flex justify-center gap-4 z-20 border-t border-gray-800">
-          <button onClick={() => setMicEnabled(!micEnabled)} className={`p-4 rounded-xl ${micEnabled ? 'bg-gray-800 text-white' : 'bg-red-500/20 text-red-500'}`}>
-            {micEnabled ? <Mic className="w-6 h-6" /> : <MicOff className="w-6 h-6" />}
-          </button>
-          <button onClick={() => setCameraEnabled(!cameraEnabled)} className={`p-4 rounded-xl ${cameraEnabled ? 'bg-gray-800 text-white' : 'bg-red-500/20 text-red-500'}`}>
-            {cameraEnabled ? <Video className="w-6 h-6" /> : <VideoOff className="w-6 h-6" />}
-          </button>
-          <div className="w-px h-10 bg-gray-700 mx-2 self-center"></div>
-          <button onClick={onLeave} className="px-8 py-4 bg-red-600 hover:bg-red-700 rounded-xl text-white font-bold flex items-center gap-2">
-             <PhoneCall className="w-5 h-5 transform rotate-[135deg]" /> עזוב חדר קבוצתי
-          </button>
-        </div>
-      </div>
-      <div className="w-80 bg-gray-50 flex flex-col z-20 border-l border-gray-200">
-        <div className="flex bg-white border-b border-gray-200 p-2 gap-1">
-          <button className="flex-1 py-2 text-sm font-bold rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center gap-1.5"><Users className="w-4 h-4" /> משתתפים</button>
-        </div>
-        <div className="p-4 space-y-2 flex-1">
-           {participants.map(p => (
-             <div key={p.id} className="bg-white p-3 rounded-lg border border-gray-100 flex justify-between items-center shadow-sm">
-                <span className="font-bold text-sm text-gray-800">{p.name}</span>
-                {p.isHost && <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-1 rounded">מנחה</span>}
-             </div>
-           ))}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ==========================================
-// 3. הנתב הראשי של האפליקציה (App)
-// ==========================================
-export default function App() {
-  const [user, setUser] = useState(null);
-  const [currentView, setCurrentView] = useState('welcome'); 
-  const [isLoading, setIsLoading] = useState(true);
-
-  const [testSessionId, setTestSessionId] = useState('sess_test_123');
-  const [testExpertId, setTestExpertId] = useState('expert_test_123');
-
-  useEffect(() => {
-    if (!auth) {
-      setIsLoading(false);
-      return;
-    }
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-      setIsLoading(false);
-    });
-    return () => unsubscribe();
+      const context = canvas.getContext('2d');
+      context.scale(dpr, dpr);
+      context.lineCap = 'round';
+      context.lineJoin = 'round';
+      context.fillStyle = '#ffffff';
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      contextRef.current = context;
+    };
+    setTimeout(initCanvas, 100);
+    window.addEventListener('resize', initCanvas);
+    return () => window.removeEventListener('resize', initCanvas);
   }, []);
 
-  const handleGuestLogin = async () => {
-    if (!auth) return;
-    try {
-      setIsLoading(true);
-      await signInAnonymously(auth);
-      setCurrentView('marketplace');
-    } catch (error) {
-      console.error("Guest login failed", error);
-    } finally {
-      setIsLoading(false);
+  useEffect(() => {
+    if (contextRef.current) {
+      contextRef.current.strokeStyle = tool === 'eraser' ? '#ffffff' : color;
+      contextRef.current.lineWidth = tool === 'eraser' ? 12 : 3;
     }
+  }, [color, tool]);
+
+  const startDrawing = ({ nativeEvent }) => {
+    const { offsetX, offsetY } = getCoordinates(nativeEvent);
+    contextRef.current.beginPath();
+    contextRef.current.moveTo(offsetX, offsetY);
+    setIsDrawing(true);
   };
 
-  const handleLogout = async () => {
-    if (!auth) return;
-    await signOut(auth);
-    setCurrentView('welcome');
+  const finishDrawing = () => {
+    contextRef.current.closePath();
+    setIsDrawing(false);
   };
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="w-16 h-16 border-4 border-blue-900 border-t-teal-500 rounded-full animate-spin"></div>
+  const draw = ({ nativeEvent }) => {
+    if (!isDrawing) return;
+    const { offsetX, offsetY } = getCoordinates(nativeEvent);
+    contextRef.current.lineTo(offsetX, offsetY);
+    contextRef.current.stroke();
+  };
+
+  const getCoordinates = (event) => {
+    if (event.touches && event.touches.length > 0) {
+      const rect = canvasRef.current.getBoundingClientRect();
+      return {
+        offsetX: event.touches[0].clientX - rect.left,
+        offsetY: event.touches[0].clientY - rect.top
+      };
+    }
+    return {
+      offsetX: event.nativeEvent ? event.nativeEvent.offsetX : event.offsetX,
+      offsetY: event.nativeEvent ? event.nativeEvent.offsetY : event.offsetY
+    };
+  };
+
+  const clearCanvas = () => {
+    const canvas = canvasRef.current;
+    const context = canvas.getContext('2d');
+    context.fillStyle = '#ffffff';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+  };
+
+  return (
+    <div className="flex flex-col h-full bg-white rounded-xl border border-gray-200 overflow-hidden" ref={wrapperRef}>
+      <div className="bg-gray-50 border-b border-gray-200 p-2 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          {['#000000', '#EF4444', '#3B82F6', '#10B981'].map(c => (
+            <button key={c} onClick={() => { setColor(c); setTool('pen'); }} className={`w-6 h-6 rounded-full border-2 ${color === c && tool === 'pen' ? 'border-gray-800' : 'border-transparent'}`} style={{ backgroundColor: c }} />
+          ))}
+          <div className="w-px h-6 bg-gray-300 mx-1"></div>
+          <button onClick={() => setTool('pen')} className={`p-1.5 rounded-md ${tool === 'pen' ? 'bg-teal-100 text-teal-700' : 'text-gray-600'}`}><PenTool className="w-4 h-4" /></button>
+          <button onClick={() => setTool('eraser')} className={`p-1.5 rounded-md ${tool === 'eraser' ? 'bg-gray-200 text-gray-800' : 'text-gray-600'}`}><Eraser className="w-4 h-4" /></button>
+        </div>
+        <button onClick={clearCanvas} className="p-1.5 text-red-500 hover:bg-red-50 rounded-md"><Trash2 className="w-4 h-4" /></button>
       </div>
-    );
-  }
+      <div className="flex-1 relative cursor-crosshair touch-none bg-white">
+        <canvas
+          ref={canvasRef} onMouseDown={startDrawing} onMouseUp={finishDrawing} onMouseMove={draw} onMouseLeave={finishDrawing} onTouchStart={startDrawing} onTouchEnd={finishDrawing} onTouchMove={draw}
+          className="w-full h-full"
+        />
+      </div>
+    </div>
+  );
+};
 
-  const DevNavigationBar = () => (
-    <div className="bg-gray-900 text-gray-300 text-xs py-2 px-4 flex flex-wrap gap-4 items-center justify-center border-b-4 border-red-500" dir="rtl">
-      <span className="font-bold text-white flex items-center gap-1">
-        <LayoutDashboard className="w-4 h-4 text-red-500"/> תפריט פיתוח (Dev):
-      </span>
-      <button onClick={() => setCurrentView('welcome')} className="hover:text-white transition-colors">מסך פתיחה</button><span>|</span>
-      <button onClick={() => setCurrentView('marketplace')} className="hover:text-white transition-colors">קטלוג</button><span>|</span>
-      <button onClick={() => setCurrentView('checkout')} className="hover:text-white transition-colors">קופה</button><span>|</span>
-      <button onClick={() => setCurrentView('videoRoom')} className="hover:text-white transition-colors">1-על-1</button><span>|</span>
-      <button onClick={() => setCurrentView('groupRoom')} className="text-teal-400 font-bold hover:text-teal-300 transition-colors">חדר קבוצתי</button><span>|</span>
-      <button onClick={() => setCurrentView('onboarding')} className="hover:text-white transition-colors">הרשמת מטפל</button><span>|</span>
-      <button onClick={() => setCurrentView('dashboard')} className="hover:text-white transition-colors">לוח בקרה מטפל</button><span>|</span>
-      <button onClick={() => setCurrentView('admin')} className="text-red-400 font-bold hover:text-red-300 transition-colors">מערכת ניהול</button>
+// ==========================================
+// 3. מנוע פוקר פרימיום (PLO5)
+// ==========================================
+const PokerWidget = ({ isHost }) => {
+  const [pot, setPot] = useState(1550);
+  const [godMode, setGodMode] = useState(false);
+
+  const Card = ({ value, suit, color, isHidden }) => (
+    <div className={`w-14 h-20 rounded-lg shadow-md flex flex-col justify-between p-1 border-2 
+      ${isHidden && !godMode ? 'bg-blue-900 border-white/20 bg-[url("https://www.transparenttextures.com/patterns/cubes.png")]' : 'bg-white border-gray-200'} 
+      ${isHidden && godMode ? 'ring-2 ring-amber-400 border-transparent shadow-[0_0_15px_rgba(251,191,36,0.5)]' : ''}`}>
+      {(!isHidden || godMode) && (
+        <>
+          <div className={`text-xs font-bold ${color}`}>{value}</div>
+          <div className={`text-xl text-center ${color}`}>{suit}</div>
+        </>
+      )}
     </div>
   );
 
-  const GlobalNavbar = () => (
-    <nav className="bg-blue-900 text-white shadow-md border-b border-blue-800 px-6 py-3 flex justify-between items-center sticky top-0 z-50" dir="rtl">
-      <div className="flex items-center gap-2 cursor-pointer" onClick={() => setCurrentView('welcome')}>
-        <ShieldCheck className="w-8 h-8 text-teal-400" />
-        <span className="text-xl font-bold">Veri<span className="text-teal-400">Sess</span></span>
-      </div>
-      <div className="flex items-center gap-4">
-        {user && (
-          <button onClick={handleLogout} className="flex items-center gap-2 text-red-300 hover:text-red-100 transition-colors text-sm font-bold bg-blue-800 px-3 py-1.5 rounded-lg">
-            <LogOut className="w-4 h-4" /> התנתק
+  return (
+    <div className="flex flex-col h-full bg-slate-950 rounded-xl overflow-hidden border border-slate-800 relative select-none" dir="ltr">
+      
+      {/* הדר עליון (שליטת מנהל) */}
+      <div className="bg-slate-900 p-3 flex justify-between items-center border-b border-slate-800">
+        <div className="flex items-center gap-2">
+          <Crown className="w-5 h-5 text-amber-500" />
+          <span className="font-bold text-amber-500 text-sm">PLO5 - High Stakes</span>
+        </div>
+        
+        {isHost && (
+          <button 
+            onClick={() => setGodMode(!godMode)}
+            className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full transition-all ${godMode ? 'bg-amber-500 text-black shadow-[0_0_10px_rgba(245,158,11,0.5)]' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}
+          >
+            {godMode ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+            God Mode
           </button>
         )}
       </div>
-    </nav>
+
+      {/* אזור השולחן */}
+      <div className="flex-1 bg-green-900 relative p-4 flex flex-col justify-between" style={{ backgroundImage: "radial-gradient(circle, #065f46 0%, #022c22 100%)" }}>
+        
+        {/* שחקן יריב (למעלה) */}
+        <div className="flex flex-col items-center gap-2">
+          <div className="flex -space-x-4">
+            <Card isHidden={true} value="A" suit="♥️" color="text-red-600" />
+            <Card isHidden={true} value="K" suit="♣️" color="text-black" />
+            <Card isHidden={true} value="Q" suit="♦️" color="text-red-600" />
+            <Card isHidden={true} value="J" suit="♠️" color="text-black" />
+            <Card isHidden={true} value="10" suit="♥️" color="text-red-600" />
+          </div>
+          <div className="bg-black/60 text-white text-xs px-3 py-1 rounded-full flex items-center gap-2 backdrop-blur-sm border border-slate-700" dir="rtl">
+            <Users className="w-3 h-3 text-amber-400" /> שחקן 2
+            {godMode && <span className="text-amber-400 font-bold ml-1">נחשף</span>}
+          </div>
+        </div>
+
+        {/* קלפי קהילה וקופה */}
+        <div className="flex flex-col items-center gap-4 my-4">
+          <div className="bg-black/50 border border-amber-500/30 px-4 py-1.5 rounded-full flex items-center gap-2 shadow-lg backdrop-blur-md">
+            <Coins className="w-4 h-4 text-amber-400" />
+            <span className="font-black text-amber-400 tracking-wider">₪{pot.toLocaleString()}</span>
+          </div>
+          <div className="flex gap-2">
+            <Card value="8" suit="♠️" color="text-black" />
+            <Card value="9" suit="♦️" color="text-red-600" />
+            <Card value="2" suit="♣️" color="text-black" />
+          </div>
+        </div>
+
+        {/* השחקן המקומי (למטה) */}
+        <div className="flex flex-col items-center gap-2">
+          <div className="bg-black/60 text-amber-400 text-xs px-3 py-1 rounded-full border border-amber-500/30" dir="rtl">
+            היד שלך
+          </div>
+          <div className="flex -space-x-4">
+            <Card value="A" suit="♠️" color="text-black" />
+            <Card value="A" suit="♦️" color="text-red-600" />
+            <Card value="K" suit="♠️" color="text-black" />
+            <Card value="4" suit="♥️" color="text-red-600" />
+            <Card value="2" suit="♦️" color="text-red-600" />
+          </div>
+        </div>
+      </div>
+
+      {/* פאנל פעולות (Action Bar) */}
+      <div className="bg-slate-900 p-3 border-t border-slate-800 grid grid-cols-3 gap-2">
+        <button className="bg-red-950/50 text-red-500 hover:bg-red-900/80 text-sm font-bold py-3 rounded-lg border border-red-900/50 transition-colors">Fold</button>
+        <button className="bg-slate-800 text-slate-300 hover:bg-slate-700 text-sm font-bold py-3 rounded-lg border border-slate-700 transition-colors">Check</button>
+        <button onClick={() => setPot(p => p + 200)} className="bg-gradient-to-t from-amber-600 to-amber-400 hover:from-amber-500 hover:to-amber-300 text-slate-950 text-sm font-black py-3 rounded-lg shadow-[0_0_15px_rgba(245,158,11,0.3)] transition-all">Pot (₪200)</button>
+      </div>
+    </div>
   );
+}
+
+// ==========================================
+// 4. החדר הראשי החכם (Unified Video Room)
+// ==========================================
+export default function VideoRoom({ sessionId, onLeave, isProvider = true }) {
+  const [messages, setMessages] = useState([]);
+  const [newMessage, setNewMessage] = useState('');
+  const [activeTab, setActiveTab] = useState('chat'); // chat, whiteboard, notes, participants
+  
+  // ציוד קצה
+  const [micEnabled, setMicEnabled] = useState(true);
+  const [cameraEnabled, setCameraEnabled] = useState(true);
+  const localVideoRef = useRef(null);
+  const [localStream, setLocalStream] = useState(null);
+
+  const currentUser = auth?.currentUser;
+
+  // --- ניהול משתתפים דינמי ---
+  const [participants, setParticipants] = useState([
+    { id: 'me', name: 'אני', isLocal: true, img: null },
+    { id: 'p1', name: 'לקוח 1', isLocal: false, img: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?ixlib=rb-4.0.3&w=1000&q=80' }
+  ]);
+  const [waitingRoom, setWaitingRoom] = useState([]);
+
+  // פונקציית טסט להדגמת היכולת הדינמית (כפתור בסרגל העליון)
+  const addTestParticipant = () => {
+    const newId = `p${participants.length}`;
+    setParticipants(prev => [
+      ...prev, 
+      { id: newId, name: `משתתף נוסף ${participants.length}`, isLocal: false, img: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?ixlib=rb-4.0.3&w=1000&q=80' }
+    ]);
+  };
+
+  // 1. הפעלת מצלמה מקומית
+  useEffect(() => {
+    const initCamera = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        setLocalStream(stream);
+        if (localVideoRef.current) localVideoRef.current.srcObject = stream;
+      } catch (err) { console.error("שגיאת מצלמה:", err); }
+    };
+    initCamera();
+    return () => { if (localStream) localStream.getTracks().forEach(track => track.stop()); };
+  }, []);
+
+  // 2. האזנה לפעילות בסשן בענן
+  useEffect(() => {
+    if (!sessionId || !db) return;
+    const sessionRef = doc(db, 'artifacts', appId, 'public', 'data', 'sessions', sessionId);
+    const unsubscribe = onSnapshot(sessionRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setMessages(data.messages || []);
+        if (data.status === 'ended' && onLeave) {
+           alert("השיחה הסתיימה.");
+           onLeave();
+        }
+      }
+    });
+    return () => unsubscribe();
+  }, [sessionId, onLeave]);
+
+  const sendMessage = async (e) => {
+    e.preventDefault();
+    if (!newMessage.trim() || !sessionId || !currentUser) return;
+    const sessionRef = doc(db, 'artifacts', appId, 'public', 'data', 'sessions', sessionId);
+    try {
+      await updateDoc(sessionRef, {
+        messages: arrayUnion({ senderId: currentUser.uid, text: newMessage, timestamp: new Date().toISOString() })
+      });
+      setNewMessage('');
+    } catch (error) { console.error("Error sending message:", error); }
+  };
+
+  const handleEndCall = async () => {
+    if (sessionId && db) {
+      const sessionRef = doc(db, 'artifacts', appId, 'public', 'data', 'sessions', sessionId);
+      try { await updateDoc(sessionRef, { status: 'ended' }); } catch (error) { console.error(error); }
+    }
+    if (onLeave) onLeave();
+  };
+
+  const toggleMedia = (type) => {
+    if (localStream) {
+      const tracks = type === 'video' ? localStream.getVideoTracks() : localStream.getAudioTracks();
+      tracks.forEach(track => { track.enabled = !track.enabled; });
+      if (type === 'video') setCameraEnabled(!cameraEnabled);
+      if (type === 'audio') setMicEnabled(!micEnabled);
+    }
+  };
+
+  // ==========================================
+  // מנוע התצוגה החכם (Smart Layout Engine)
+  // ==========================================
+  const renderVideoLayout = () => {
+    // 1-on-1 Layout (PiP)
+    if (participants.length <= 2) {
+      const remoteParticipant = participants.find(p => !p.isLocal) || participants[0];
+      return (
+        <>
+          <img src={remoteParticipant.img} alt="Remote" className="absolute inset-0 w-full h-full object-cover opacity-80" />
+          <div className="absolute top-6 right-6 bg-black/60 text-white px-4 py-2 rounded-lg backdrop-blur-sm z-10 flex items-center gap-2 shadow-lg">
+             <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+             {remoteParticipant.name}
+          </div>
+          
+          <div className="absolute bottom-24 left-6 w-48 h-32 bg-gray-800 rounded-xl overflow-hidden border-2 border-gray-700 z-20 shadow-2xl transition-all hover:scale-105">
+            <video ref={localVideoRef} autoPlay playsInline muted className={`w-full h-full object-cover ${cameraEnabled ? '' : 'hidden'}`} />
+            {!cameraEnabled && (
+              <div className="w-full h-full flex flex-col items-center justify-center text-gray-500 bg-gray-900">
+                <VideoOff className="w-6 h-6 mb-1" />
+              </div>
+            )}
+          </div>
+        </>
+      );
+    }
+    
+    // Group Layout (Grid)
+    return (
+      <div className="absolute inset-0 p-6 pt-20 grid gap-4 grid-cols-2 lg:grid-cols-3">
+        {participants.map((p, idx) => (
+          <div key={p.id} className="bg-gray-800 rounded-xl overflow-hidden relative border border-gray-700 shadow-lg group">
+            {p.isLocal ? (
+              <>
+                <video ref={localVideoRef} autoPlay playsInline muted className={`w-full h-full object-cover ${cameraEnabled ? '' : 'hidden'}`} />
+                {!cameraEnabled && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-gray-900">
+                    <VideoOff className="w-8 h-8 text-gray-500" />
+                  </div>
+                )}
+              </>
+            ) : (
+              <img src={p.img} alt={p.name} className="w-full h-full object-cover" />
+            )}
+            <div className="absolute bottom-3 right-3 bg-black/70 backdrop-blur px-3 py-1.5 rounded-lg text-white text-sm font-medium">
+              {p.name} {p.isLocal && '(אתה)'}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
 
   return (
-    <div className="min-h-screen bg-gray-50 font-sans">
-      <DevNavigationBar />
-      {currentView !== 'welcome' && currentView !== 'videoRoom' && currentView !== 'groupRoom' && currentView !== 'admin' && <GlobalNavbar />}
-
-      {currentView === 'welcome' && (
-        <div className="min-h-[90vh] flex flex-col items-center justify-center p-4 bg-gradient-to-b from-blue-900 to-gray-900" dir="rtl">
-          <div className="text-center mb-12 animate-in fade-in zoom-in duration-700">
-            <ShieldCheck className="w-24 h-24 text-teal-400 mx-auto mb-6" />
-            <h1 className="text-5xl font-bold text-white mb-4">Veri<span className="text-teal-400">Sess</span></h1>
-            <p className="text-xl text-blue-200">הקליניקה הווירטואלית המאובטחת בעולם.</p>
+    <div className="max-w-7xl mx-auto my-4 bg-gray-900 rounded-2xl overflow-hidden shadow-2xl h-[85vh] flex relative border border-gray-800" dir="rtl">
+      
+      {/* ------------------------------------------- */}
+      {/* אזור הוידאו המרכזי */}
+      {/* ------------------------------------------- */}
+      <div className="flex-1 relative bg-black flex items-center justify-center overflow-hidden">
+        
+        {/* סרגל עליון (חדר מאוחד) */}
+        <div className="absolute top-4 left-4 z-30 flex items-center gap-2">
+          <div className="bg-black/60 text-white px-4 py-2 rounded-lg backdrop-blur-sm flex items-center gap-2 border border-gray-700">
+            <Clock className="w-4 h-4 text-teal-400" /> <span className="font-mono">44:59</span>
           </div>
+        </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl w-full">
-            <div className="bg-white rounded-2xl p-8 shadow-xl border border-gray-100 flex flex-col items-center text-center hover:scale-105 transition-transform cursor-pointer" onClick={() => setCurrentView('marketplace')}>
-              <h2 className="text-2xl font-bold text-blue-900 mb-2">אני מחפש ייעוץ</h2>
-              <p className="text-gray-500 mb-6">מצא עורך דין, פסיכולוג או יועץ זמין עכשיו לשיחת וידאו.</p>
-              <button className="mt-auto w-full bg-teal-500 hover:bg-teal-600 text-white font-bold py-4 px-6 rounded-xl transition-colors shadow-md text-lg">
-                היכנס כלקוח (SOS)
-              </button>
+        {/* כפתור פיתוח - להוספת אנשים ולראות איך הגריד משתנה! */}
+        <div className="absolute top-4 right-4 z-30 flex gap-2">
+           <button onClick={addTestParticipant} className="bg-blue-600/80 hover:bg-blue-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold backdrop-blur-sm border border-blue-400 flex items-center gap-1 transition-colors">
+             <UserPlus className="w-4 h-4" /> סמלץ כניסת משתתף נוסף
+           </button>
+           <div className="bg-gray-800/80 text-white px-3 py-1.5 rounded-lg text-xs border border-gray-700 backdrop-blur-sm">
+             מצב: {participants.length <= 2 ? '1-על-1 (PiP)' : 'קבוצה (Grid)'}
+           </div>
+        </div>
+
+        {/* קריאה למנוע התצוגה החכם */}
+        {renderVideoLayout()}
+
+        {/* סרגל שליטה תחתון */}
+        <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-gray-900/90 backdrop-blur-md px-8 py-3 rounded-full flex gap-4 z-30 border border-gray-700 shadow-2xl">
+          <button onClick={() => toggleMedia('audio')} className={`p-4 rounded-full transition-colors ${micEnabled ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-red-500/20 text-red-500'}`}>
+            {micEnabled ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
+          </button>
+          
+          <button onClick={() => toggleMedia('video')} className={`p-4 rounded-full transition-colors ${cameraEnabled ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-red-500/20 text-red-500'}`}>
+            {cameraEnabled ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
+          </button>
+
+          <div className="w-px h-8 bg-gray-700 mx-2 self-center"></div>
+
+          <button onClick={handleEndCall} className="p-4 bg-red-600 hover:bg-red-700 rounded-full text-white font-bold px-6 flex items-center gap-2 shadow-lg transition-transform active:scale-95">
+             <PhoneCall className="w-5 h-5 transform rotate-[135deg]" /> {participants.length > 2 && isProvider ? 'סיים לכולם' : 'עזוב שיחה'}
+          </button>
+        </div>
+      </div>
+
+      {/* ------------------------------------------- */}
+      {/* פאנל ימני: ווידג'טים חכמים (Tabs) */}
+      {/* ------------------------------------------- */}
+      <div className="w-96 bg-gray-50 flex flex-col z-20 border-l border-gray-200">
+        
+        {/* ניווט הטאבים */}
+        <div className="flex flex-wrap bg-white border-b border-gray-200 p-1">
+          <button onClick={() => setActiveTab('chat')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-1.5 ${activeTab === 'chat' ? 'bg-teal-50 text-teal-700' : 'text-gray-500 hover:bg-gray-50'}`}>
+            <MessageSquare className="w-4 h-4" /> צ'אט
+          </button>
+          <button onClick={() => setActiveTab('whiteboard')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-1.5 ${activeTab === 'whiteboard' ? 'bg-teal-50 text-teal-700' : 'text-gray-500 hover:bg-gray-50'}`}>
+            <PenTool className="w-4 h-4" /> לוח
+          </button>
+          <button onClick={() => setActiveTab('poker')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-1.5 ${activeTab === 'poker' ? 'bg-amber-100 text-amber-700 border border-amber-200 shadow-sm' : 'text-gray-500 hover:bg-gray-50'}`}>
+            <span className="text-lg leading-none">♠️</span> פוקר
+          </button>
+          {isProvider && (
+            <button onClick={() => setActiveTab('notes')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-1.5 ${activeTab === 'notes' ? 'bg-teal-50 text-teal-700' : 'text-gray-500 hover:bg-gray-50'}`}>
+              <ShieldCheck className="w-4 h-4" /> הערות
+            </button>
+          )}
+          <button onClick={() => setActiveTab('participants')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-1.5 ${activeTab === 'participants' ? 'bg-teal-50 text-teal-700' : 'text-gray-500 hover:bg-gray-50'}`}>
+            <Users className="w-4 h-4" /> {participants.length}
+          </button>
+        </div>
+
+        {/* תוכן הטאב הנבחר */}
+        <div className="flex-1 overflow-hidden p-3 bg-gray-50 flex flex-col">
+          
+          {/* טאב צ'אט */}
+          {activeTab === 'chat' && (
+            <div className="h-full flex flex-col">
+              <div className="flex-1 overflow-y-auto space-y-3 mb-4 pr-1">
+                {messages.length === 0 ? (
+                  <div className="text-center text-gray-400 text-sm mt-10">הצ'אט מוצפן מקצה לקצה.</div>
+                ) : (
+                  messages.map((msg, idx) => {
+                    const isMe = currentUser && msg.senderId === currentUser.uid;
+                    return (
+                      <div key={idx} className={`flex flex-col ${isMe ? 'items-start' : 'items-end'}`}>
+                        <div className={`px-4 py-2 rounded-2xl max-w-[90%] text-sm ${isMe ? 'bg-teal-500 text-white rounded-tr-none' : 'bg-white border border-gray-200 text-gray-800 rounded-tl-none shadow-sm'}`}>
+                          {msg.text}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+              <form onSubmit={sendMessage} className="flex gap-2 bg-white p-1 rounded-full border border-gray-200 shadow-sm">
+                <input 
+                  type="text" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} 
+                  placeholder="הקלד הודעה..." className="flex-1 bg-transparent px-4 py-2 text-sm focus:outline-none" 
+                />
+                <button type="submit" className="bg-teal-500 text-white p-2 rounded-full hover:bg-teal-600 disabled:opacity-50" disabled={!newMessage.trim()}>
+                  <Send className="w-4 h-4" />
+                </button>
+              </form>
             </div>
+          )}
 
-            <div className="bg-blue-800 rounded-2xl p-8 shadow-xl border border-blue-700 flex flex-col items-center text-center hover:scale-105 transition-transform">
-              <h2 className="text-2xl font-bold text-white mb-2">אני מומחה / מטפל</h2>
-              <p className="text-blue-200 mb-6">הצטרף למרחב המוגן, נהל קליניקה וקבל לקוחות חדשים.</p>
-              <div className="mt-auto w-full flex flex-col gap-3">
-                <button onClick={() => setCurrentView('onboarding')} className="w-full bg-white hover:bg-gray-100 text-blue-900 font-bold py-3 px-6 rounded-xl transition-colors shadow-md">
-                  הגש בקשת הצטרפות
-                </button>
-                <button onClick={() => setCurrentView('dashboard')} className="w-full bg-blue-900 hover:bg-blue-950 text-white border border-blue-600 font-bold py-3 px-6 rounded-xl transition-colors">
-                  כניסה למטפלים רשומים
-                </button>
+          {/* טאב לוח לבן */}
+          {activeTab === 'whiteboard' && (
+            <div className="h-full w-full"><WhiteboardWidget /></div>
+          )}
+
+          {/* טאב פוקר (קזינו) */}
+          {activeTab === 'poker' && (
+            <div className="h-full w-full p-2 bg-slate-950">
+              <PokerWidget isHost={isProvider} />
+            </div>
+          )}
+
+          {/* טאב הערות חסויות (מוצג רק למנחה/מטפל) */}
+          {activeTab === 'notes' && isProvider && (
+            <div className="h-full flex flex-col gap-4">
+              <div className="bg-yellow-50 border border-yellow-200 p-3 rounded-lg text-sm text-yellow-800 flex items-start gap-2">
+                <AlertTriangle className="w-5 h-5 flex-shrink-0" />
+                <div>המשתתפים אינם רואים את הנכתב כאן.</div>
+              </div>
+              <textarea 
+                className="flex-1 w-full p-4 rounded-xl border border-gray-200 focus:outline-none focus:border-teal-500 resize-none shadow-inner bg-white"
+                placeholder="הקלד הערות פרטיות, אבחנות או תזכורות..."
+              ></textarea>
+            </div>
+          )}
+
+          {/* טאב משתתפים (ניהול הקהל) */}
+          {activeTab === 'participants' && (
+            <div className="h-full flex flex-col">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="font-bold text-gray-700 text-sm">משתתפים בחדר ({participants.length})</h3>
+                {isProvider && participants.length > 2 && (
+                  <button className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded hover:bg-blue-100">השתק את כולם</button>
+                )}
+              </div>
+              <div className="space-y-2 flex-1 overflow-y-auto">
+                {participants.map(p => (
+                  <div key={p.id} className="bg-white p-3 rounded-xl border border-gray-100 flex justify-between items-center shadow-sm">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-200">
+                        {p.img ? <img src={p.img} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center font-bold text-gray-500">{p.name.charAt(0)}</div>}
+                      </div>
+                      <div>
+                        <span className="font-bold text-sm text-gray-800 block">{p.name} {p.isLocal && '(אתה)'}</span>
+                        {p.id === 'me' && isProvider && <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-bold">מנחה</span>}
+                      </div>
+                    </div>
+                    {isProvider && !p.isLocal && (
+                      <button className="text-gray-400 hover:text-red-500" title="הוצא מהחדר"><X className="w-4 h-4" /></button>
+                    )}
+                  </div>
+                ))}
               </div>
             </div>
-          </div>
-        </div>
-      )}
+          )}
 
-      {currentView === 'marketplace' && <Marketplace onSelectExpert={(id) => { setTestExpertId(id); setCurrentView('checkout'); }} />}
-      {currentView === 'onboarding' && <ProviderOnboarding />}
-      {currentView === 'dashboard' && <ProviderDashboard />}
-      {currentView === 'admin' && <AdminPanel />}
-      
-      {currentView === 'checkout' && (
-        <div className="p-8">
-          <ClientCheckout expertId={testExpertId} onCancel={() => setCurrentView('marketplace')} onSuccess={(sessionId) => { setTestSessionId(sessionId); setCurrentView('videoRoom'); }} />
         </div>
-      )}
-      
-      {currentView === 'videoRoom' && <VideoRoom sessionId={testSessionId} onLeave={() => setCurrentView('marketplace')} />}
-      {currentView === 'groupRoom' && <GroupRoom sessionId={testSessionId} onLeave={() => setCurrentView('welcome')} isHost={true} />}
+      </div>
     </div>
   );
 }
