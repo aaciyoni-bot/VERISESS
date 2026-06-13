@@ -25,7 +25,8 @@ try {
 // ==========================================
 // 2. קומפוננטת האונבורדינג הראשית
 // ==========================================
-export default function ProviderOnboarding() {
+// הוספנו onComplete כדי שהאפליקציה תדע להעביר לדאשבורד בסיום!
+export default function ProviderOnboarding({ onComplete }) {
   const [user, setUser] = useState(null);
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -309,7 +310,10 @@ export default function ProviderOnboarding() {
                 הנתונים נשמרו בהצלחה במסד הנתונים בענן.<br/>
                 ברגע שצוות האדמין יאשר את התעודות, תוכל להדליק את מתג ה-SOS ולהתחיל להרוויח.
               </p>
-              <button className="bg-blue-900 text-white font-bold px-8 py-3 rounded-lg hover:bg-blue-800 transition-colors">
+              <button 
+                onClick={() => onComplete && onComplete()} 
+                className="bg-blue-900 text-white font-bold px-8 py-3 rounded-lg hover:bg-blue-800 transition-colors shadow-md"
+              >
                 מעבר ללוח הבקרה (Dashboard)
               </button>
             </div>
