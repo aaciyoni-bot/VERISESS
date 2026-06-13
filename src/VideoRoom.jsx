@@ -97,13 +97,13 @@ const WhiteboardWidget = () => {
       <div className="bg-gray-50 border-b border-gray-200 p-2 flex items-center justify-between">
         <div className="flex items-center gap-2">
           {['#000000', '#EF4444', '#3B82F6', '#10B981'].map(c => (
-            <button key={c} onClick={() => { setColor(c); setTool('pen'); }} className={`w-6 h-6 rounded-full border-2 ${color === c && tool === 'pen' ? 'border-gray-800' : 'border-transparent'}`} style={{ backgroundColor: c }} />
+            <button key={c} onClick={() => { setColor(c); setTool('pen'); }} className={`w-6 h-6 rounded-full border-2 transition-transform ${color === c && tool === 'pen' ? 'border-gray-800 scale-110' : 'border-transparent'}`} style={{ backgroundColor: c }} />
           ))}
           <div className="w-px h-6 bg-gray-300 mx-1"></div>
           <button onClick={() => setTool('pen')} className={`p-1.5 rounded-md ${tool === 'pen' ? 'bg-teal-100 text-teal-700' : 'text-gray-600'}`}><PenTool className="w-4 h-4" /></button>
           <button onClick={() => setTool('eraser')} className={`p-1.5 rounded-md ${tool === 'eraser' ? 'bg-gray-200 text-gray-800' : 'text-gray-600'}`}><Eraser className="w-4 h-4" /></button>
         </div>
-        <button onClick={clearCanvas} className="p-1.5 text-red-500 hover:bg-red-50 rounded-md"><Trash2 className="w-4 h-4" /></button>
+        <button onClick={clearCanvas} className="p-1.5 text-red-500 hover:bg-red-50 rounded-md transition-colors"><Trash2 className="w-4 h-4" /></button>
       </div>
       <div className="flex-1 relative cursor-crosshair touch-none bg-white">
         <canvas ref={canvasRef} onMouseDown={startDrawing} onMouseUp={finishDrawing} onMouseMove={draw} onMouseLeave={finishDrawing} onTouchStart={startDrawing} onTouchEnd={finishDrawing} onTouchMove={draw} className="w-full h-full" />
@@ -158,7 +158,7 @@ const PokerWidget = ({ isHost, mode = 'real' }) => {
             </div>
           )}
           {isHost && mode === 'play' && (
-            <button onClick={() => alert("חולקו צ'יפים")} className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-3 py-1.5 rounded-full transition-colors flex items-center gap-1">
+            <button onClick={() => alert("חולקו צ'יפים")} className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-3 py-1.5 rounded-full transition-colors flex items-center gap-1 shadow-sm">
               <HandCoins className="w-3 h-3" /> חלק צ'יפים
             </button>
           )}
@@ -193,14 +193,14 @@ const PokerWidget = ({ isHost, mode = 'real' }) => {
       <div className="bg-slate-900 p-3 border-t border-slate-800 grid grid-cols-3 gap-2">
         <button className="bg-red-950/50 text-red-500 text-sm font-bold py-3 rounded-lg border border-red-900/50 hover:bg-red-900/80 transition-colors">Fold</button>
         <button className="bg-slate-800 text-slate-300 text-sm font-bold py-3 rounded-lg border border-slate-700 hover:bg-slate-700 transition-colors">Check</button>
-        <button onClick={() => setPot(p => p + 200)} className={`text-slate-950 text-sm font-black py-3 rounded-lg shadow-lg ${mode === 'real' ? 'bg-gradient-to-t from-amber-600 to-amber-400 hover:from-amber-500' : 'bg-gradient-to-t from-blue-500 to-blue-300 hover:from-blue-400'}`}>Bet (200)</button>
+        <button onClick={() => setPot(p => p + 200)} className={`text-slate-950 text-sm font-black py-3 rounded-lg shadow-lg transition-transform active:scale-95 ${mode === 'real' ? 'bg-gradient-to-t from-amber-600 to-amber-400' : 'bg-gradient-to-t from-blue-500 to-blue-300'}`}>Bet (200)</button>
       </div>
     </div>
   );
 };
 
 // ==========================================
-// 3. קומפוננטת שכבת הציור השקופה (Draw Overlay - מיועד לחוגים)
+// 3. קומפוננטת שכבת הציור השקופה (Draw Overlay)
 // ==========================================
 const DrawOverlay = ({ isActive }) => {
   const canvasRef = useRef(null);
@@ -246,7 +246,7 @@ const DrawOverlay = ({ isActive }) => {
 };
 
 // ==========================================
-// 4. חדר הוידאו החכם (מזהה קטגוריות)
+// 4. חדר הוידאו החכם
 // ==========================================
 export default function VideoRoom({ sessionId, onLeave, isProvider = true, category = 'gaming' }) {
   const [messages, setMessages] = useState([]);
@@ -335,7 +335,7 @@ export default function VideoRoom({ sessionId, onLeave, isProvider = true, categ
       return (
         <>
           <img src={p.img} alt="Remote" className="absolute inset-0 w-full h-full object-cover opacity-80" />
-          <div className="absolute bottom-24 left-6 w-48 h-32 bg-gray-800 rounded-xl overflow-hidden border-2 border-gray-700 z-20 shadow-2xl hover:scale-105 transition-transform">
+          <div className="absolute bottom-24 left-6 w-48 h-32 bg-gray-800 rounded-xl overflow-hidden border-2 border-gray-700 z-20 shadow-2xl hover:scale-105 transition-transform duration-300">
             <video ref={localVideoRef} autoPlay playsInline muted className={`w-full h-full object-cover ${cameraEnabled ? '' : 'hidden'}`} />
             {!cameraEnabled && <div className="w-full h-full flex flex-col items-center justify-center bg-gray-900"><VideoOff className="w-6 h-6 text-gray-500 mb-1" /></div>}
           </div>
@@ -357,14 +357,14 @@ export default function VideoRoom({ sessionId, onLeave, isProvider = true, categ
   return (
     <div className="max-w-7xl mx-auto my-4 bg-gray-900 rounded-2xl overflow-hidden shadow-2xl h-[85vh] flex relative border border-gray-800" dir="rtl">
       
-      {/* אזור הוידאו השמאלי */}
+      {/* אזור הוידאו המרכזי */}
       <div className="flex-1 relative bg-black flex items-center justify-center overflow-hidden">
         <div className="absolute top-4 left-4 z-30 flex items-center gap-2">
           <div className="bg-black/60 text-white px-4 py-2 rounded-lg backdrop-blur-sm flex items-center gap-2 border border-gray-700">
             <Clock className="w-4 h-4 text-teal-400" /> 44:59
           </div>
           {category === 'class' && (
-            <div className="bg-blue-600/80 text-white px-4 py-2 rounded-lg backdrop-blur-sm flex items-center gap-2 border border-blue-500 font-bold">
+            <div className="bg-blue-600/80 text-white px-4 py-2 rounded-lg backdrop-blur-sm flex items-center gap-2 border border-blue-500 font-bold shadow-md">
               <GraduationCap className="w-4 h-4" /> מצב חוג (מורה שולט)
             </div>
           )}
@@ -383,7 +383,7 @@ export default function VideoRoom({ sessionId, onLeave, isProvider = true, categ
           <button onClick={() => toggleMedia('audio')} className={`p-4 rounded-full transition-colors ${micEnabled ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-red-500/20 text-red-500'}`}><Mic className="w-5 h-5" /></button>
           <button onClick={() => toggleMedia('video')} className={`p-4 rounded-full transition-colors ${cameraEnabled ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-red-500/20 text-red-500'}`}><Video className="w-5 h-5" /></button>
           <div className="w-px h-8 bg-gray-700 mx-2 self-center"></div>
-          <button onClick={handleEndCall} className="p-4 bg-red-600 hover:bg-red-700 rounded-full text-white font-bold px-6 flex items-center gap-2 shadow-lg"><PhoneCall className="w-5 h-5 transform rotate-[135deg]" /> עזוב חדר</button>
+          <button onClick={handleEndCall} className="p-4 bg-red-600 hover:bg-red-700 rounded-full text-white font-bold px-6 flex items-center gap-2 shadow-lg transition-transform active:scale-95"><PhoneCall className="w-5 h-5 transform rotate-[135deg]" /> עזוב חדר</button>
         </div>
       </div>
 
@@ -417,7 +417,7 @@ export default function VideoRoom({ sessionId, onLeave, isProvider = true, categ
               </div>
               <form onSubmit={sendMessage} className="flex gap-2 bg-white p-1 rounded-full border border-gray-200 shadow-sm">
                 <input type="text" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} placeholder="הקלד הודעה..." className="flex-1 bg-transparent px-4 py-2 text-sm focus:outline-none" />
-                <button type="submit" className="bg-teal-500 text-white p-2 rounded-full hover:bg-teal-600"><Send className="w-4 h-4" /></button>
+                <button type="submit" className="bg-teal-500 text-white p-2 rounded-full hover:bg-teal-600 transition-colors"><Send className="w-4 h-4" /></button>
               </form>
             </div>
           )}
@@ -425,7 +425,7 @@ export default function VideoRoom({ sessionId, onLeave, isProvider = true, categ
           {activeTab === 'whiteboard' && <div className="h-full w-full"><WhiteboardWidget /></div>}
           
           {activeTab === 'poker' && (
-            <div className="h-full w-full p-2 bg-slate-950 rounded-xl relative">
+            <div className="h-full w-full p-2 bg-slate-950 rounded-xl relative shadow-inner">
               {category === 'class' && (
                 <div className="absolute top-2 right-2 z-50 flex gap-2">
                   <button 
@@ -435,7 +435,7 @@ export default function VideoRoom({ sessionId, onLeave, isProvider = true, categ
                     <PenTool className="w-3 h-3" /> {isOverlayActive ? 'משרטט כעת...' : 'צייר על השולחן'}
                   </button>
                   {isOverlayActive && (
-                    <button onClick={() => setIsOverlayActive(false)} className="bg-gray-800 text-white p-1.5 rounded-lg border border-gray-700"><X className="w-4 h-4" /></button>
+                    <button onClick={() => setIsOverlayActive(false)} className="bg-gray-800 text-white p-1.5 rounded-lg border border-gray-700 transition-colors hover:bg-gray-700"><X className="w-4 h-4" /></button>
                   )}
                 </div>
               )}
