@@ -4,6 +4,7 @@ service cloud.firestore {
 
     function signedIn() { return request.auth != null; }
     function isOwner(uid) { return signedIn() && request.auth.uid == uid; }
+    function isAdmin() { return signedIn() && request.auth.token.email == 'aaci.yoni@gmail.com'; }
 
     // אזור נתונים ציבורי לפגישות, צ'אט וסיגנלינג WebRTC (offer/answer/ICE).
     // דורש התחברות (כולל אנונימית) — האפליקציה מתחברת אוטומטית בעלייה.
@@ -20,14 +21,14 @@ service cloud.firestore {
     // פרופילי מומחים: קטלוג ציבורי; עריכה לבעלים; status (KYC) למנהל בלבד
     match /providers/{uid} {
       allow read: if true;
-      allow create: if isOwner(uid);
+      allow create: if isOwner(uid) && request.resource.data.status == 'pending';
       allow update: if isOwner(uid)
                     && request.resource.data.status == resource.data.status;
-      allow update, delete: if request.auth.token.admin == true;
+      allow update, delete: if isAdmin();
     }
     match /providers/{uid}/availability/{slotId} {
       allow read: if true;
-      allow write: if isOwner(uid) || request.auth.token.admin == true;
+      allow write: if isOwner(uid) || isAdmin();
     }
 
     // ---- ארנק הטוקנים (1 טוקן = 1 ₪) ----

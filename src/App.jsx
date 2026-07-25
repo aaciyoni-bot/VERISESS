@@ -4,6 +4,8 @@ import VideoRoom from './VideoRoom.jsx';
 import GroupRoom from './GroupRoom.jsx';
 import { signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 import { collection, onSnapshot } from 'firebase/firestore';
+import { LoginScreen, ProviderOnboarding, AdminPanel } from './Accounts.jsx';
+import { logout, isAdminUser } from './lib/auth.js';
 import {
   ShieldCheck, LogOut, LayoutDashboard, Video, VideoOff, Mic, MicOff, 
   Clock, PhoneCall, MessageSquare, PenTool, AlertTriangle, Send, 
@@ -365,32 +367,7 @@ const ClientCheckout = ({ expertId, onCancel, onSuccess }) => {
 
 // VideoRoom ו-GroupRoom מיובאים כקומפוננטות אמיתיות מהקבצים הנפרדים (ראה imports למעלה).
 
-const AdminPanel = () => {
-  return (
-    <div className="min-h-screen bg-gray-100 flex p-8 justify-center items-center font-sans" dir="rtl">
-        <div className="bg-white p-8 rounded-2xl shadow-xl max-w-md text-center">
-            <ShieldCheck className="w-16 h-16 text-red-500 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold mb-2">פאנל אדמין פעיל</h2>
-            <p className="text-gray-500">לצורך סביבת ההדגמה והפעלת המערכת המאוחדת, פאנל הניהול מכווץ כאן. בקבצים הנפרדים שמרנו את הגרסה המלאה הכוללת אישורי KYC.</p>
-        </div>
-    </div>
-  );
-};
-
-const ProviderOnboarding = ({ onComplete }) => {
-  return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4 font-sans" dir="rtl">
-      <div className="bg-white p-10 rounded-3xl shadow-xl text-center max-w-md w-full border border-gray-100">
-        <ShieldCheck className="w-16 h-16 text-teal-500 mx-auto mb-6" />
-        <h2 className="text-2xl font-bold text-gray-800 mb-4">הרשמת מטפלים (KYC)</h2>
-        <p className="text-gray-500 mb-8">סימולציית העלאת מסמכים לאישור מערכת.</p>
-        <button onClick={onComplete} className="w-full bg-blue-900 text-white font-bold py-4 rounded-xl hover:bg-blue-800 transition-colors shadow-md">
-          סיים הרשמה ומעבר לדאשבורד
-        </button>
-      </div>
-    </div>
-  );
-};
+// AdminPanel ו-ProviderOnboarding מיובאים כרכיבים אמיתיים מ-./Accounts.jsx
 
 const ProviderDashboard = () => {
   const [isOnline, setIsOnline] = useState(false);
@@ -513,9 +490,21 @@ export default function App() {
         <ShieldCheck className="w-8 h-8 text-blue-900" />
         <span className="text-2xl font-bold text-blue-900">Veri<span className="text-teal-500">Sess</span></span>
       </div>
-      <button onClick={() => setCurrentView('marketplace')} className="text-sm font-bold text-teal-600 bg-teal-50 hover:bg-teal-100 px-4 py-2 rounded-lg transition-colors">
-        חיפוש מומחה
-      </button>
+      <div className="flex items-center gap-3">
+        <button onClick={() => setCurrentView('marketplace')} className="text-sm font-bold text-teal-600 bg-teal-50 hover:bg-teal-100 px-4 py-2 rounded-lg transition-colors">
+          חיפוש מומחה
+        </button>
+        {authUser && !authUser.isAnonymous ? (
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-600 hidden sm:block">{authUser.displayName || authUser.email}</span>
+            <button onClick={() => { logout(); setCurrentView('welcome'); }} className="text-sm font-bold text-gray-500 hover:text-red-500 px-3 py-2">יציאה</button>
+          </div>
+        ) : (
+          <button onClick={() => setCurrentView('login')} className="text-sm font-bold text-white bg-blue-900 hover:bg-blue-800 px-4 py-2 rounded-lg transition-colors">
+            כניסה / הרשמה
+          </button>
+        )}
+      </div>
     </nav>
   );
 
@@ -552,13 +541,14 @@ export default function App() {
       )}
 
       {currentView === 'marketplace' && <Marketplace onSelectExpert={(expertId, category) => { setSelectedExpertId(expertId); setRoomCategory(category); setCurrentView('checkout'); }} />}
-      {currentView === 'onboarding' && <ProviderOnboarding onComplete={() => setCurrentView('dashboard')} />}
+      {currentView === 'login' && <LoginScreen onDone={() => setCurrentView('marketplace')} />}
+      {currentView === 'onboarding' && <ProviderOnboarding user={authUser} onComplete={() => setCurrentView('dashboard')} />}
       {currentView === 'dashboard' && <ProviderDashboard />}
       {currentView === 'checkout' && <div className="p-8 flex-1 bg-gray-50 flex items-center justify-center"><ClientCheckout expertId={selectedExpertId} onCancel={() => setCurrentView('marketplace')} onSuccess={(sessionId) => { setTestSessionId(sessionId); setCurrentView('videoRoom'); }} /></div>}
       {currentView === 'videoRoom' && (roomCategory === 'group'
         ? <GroupRoom sessionId={testSessionId} onLeave={() => setCurrentView('welcome')} isHost={false} />
         : <VideoRoom sessionId={testSessionId} onLeave={() => setCurrentView('welcome')} isProvider={false} category={roomCategory} />)}
-      {currentView === 'admin' && <AdminPanel />}
+      {currentView === 'admin' && <AdminPanel user={authUser} />}
       {currentView === 'poker_lobby' && <PokerLobby />}
 
     </div>
