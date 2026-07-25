@@ -21,10 +21,19 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-export const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
-export const db = getFirestore(app);
-export const storage = getStorage(app);
+// אתחול מוגן: אם חסרה קונפיגורציה (למשל בתצוגת דמו ללא .env), לא מפילים
+// את האפליקציה — פשוט מדלגים על אתחול Firebase. הפעולות שנשענות עליו
+// ייכשלו רק אם ייקראו בפועל, אך מסכי הדמו ירונדרו כרגיל.
+const hasConfig = Boolean(firebaseConfig.apiKey && firebaseConfig.projectId);
+
+export const app = hasConfig ? initializeApp(firebaseConfig) : null;
+export const auth = app ? getAuth(app) : null;
+export const db = app ? getFirestore(app) : null;
+export const storage = app ? getStorage(app) : null;
+
+if (!hasConfig) {
+  console.warn('[VeriSess] Firebase לא אותחל — חסרים משתני VITE_FIREBASE_* ב-.env. מצב דמו.');
+}
 
 // מזהה האתר במשפחה (לשדה siteId בתנועות הארנק)
 export const SITE_ID = 'verisess';
