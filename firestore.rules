@@ -1,0 +1,62 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function isOwner(uid) { return signedIn() && request.auth.uid == uid; }
+
+    // אזור נתונים ציבורי לפגישות, צ'אט וסיגנלינג WebRTC (offer/answer/ICE).
+    // ⚠️ פיילוט: פתוח ללא התחברות כדי שהווידאו/צ'אט יעבדו מיד. לאחר הפעלת
+    //    Authentication יש להחזיר ל-`if signedIn()`.
+    match /artifacts/{appId}/public/data/{document=**} {
+      allow read, write: if true;
+    }
+
+    // חדרי וידאו 1-על-1 (סיגנלינג WebRTC) — פתוח לפיילוט
+    match /rooms/{roomId} {
+      allow read, write: if true;
+      match /{sub=**} { allow read, write: if true; }
+    }
+
+    // פרופילי מומחים: קטלוג ציבורי; עריכה לבעלים; status (KYC) למנהל בלבד
+    match /providers/{uid} {
+      allow read: if true;
+      allow create: if isOwner(uid);
+      allow update: if isOwner(uid)
+                    && request.resource.data.status == resource.data.status;
+      allow update, delete: if request.auth.token.admin == true;
+    }
+    match /providers/{uid}/availability/{slotId} {
+      allow read: if true;
+      allow write: if isOwner(uid) || request.auth.token.admin == true;
+    }
+
+    // ---- ארנק הטוקנים (1 טוקן = 1 ₪) ----
+    // פיילוט: פעולות רצות מהדפדפן. להדק ל-`if false` בשלב Cloud Functions.
+    match /wallets/{uid} {
+      allow read: if signedIn();
+      allow write: if signedIn();
+    }
+    match /wallet_ledger/{id} {
+      allow read: if signedIn();
+      allow create: if signedIn();
+      allow update, delete: if false;      // append-only
+    }
+    match /wallet_holds/{id} {
+      allow read: if signedIn();
+      allow create, update: if signedIn();
+      allow delete: if false;
+    }
+    match /wallet_payouts/{id} {
+      allow read: if signedIn();
+      allow create: if signedIn();
+      allow update: if signedIn();
+      allow delete: if false;
+    }
+
+    // הזמנות
+    match /bookings/{id} {
+      allow read, write: if signedIn();
+    }
+  }
+}

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { doc, onSnapshot, updateDoc, arrayUnion } from 'firebase/firestore';
+import { doc, onSnapshot, updateDoc, arrayUnion, setDoc } from 'firebase/firestore';
 import { auth, db, appId } from './firebase.js';
+import { useWebRTC } from './lib/webrtc.js';
 import { 
   ShieldCheck, Video, VideoOff, Mic, MicOff, Clock, 
   PhoneCall, MessageSquare, PenTool, AlertTriangle, Send, 
@@ -249,30 +250,19 @@ export default function VideoRoom({ sessionId, onLeave, isProvider = true, categ
   const [micEnabled, setMicEnabled] = useState(true);
   const [cameraEnabled, setCameraEnabled] = useState(true);
   const localVideoRef = useRef(null);
-  const [localStream, setLocalStream] = useState(null);
+  const remoteVideoRef = useRef(null);
   const currentUser = auth?.currentUser;
 
-  const [participants, setParticipants] = useState([
-    { id: 'me', name: 'אני', isLocal: true, img: null },
-    { id: 'p1', name: 'משתתף נוסף', isLocal: false, img: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?ixlib=rb-4.0.3&w=1000&q=80' }
-  ]);
+  // וידאו אמיתי 1-על-1 (WebRTC + סיגנלינג ב-Firestore), חדר לפי sessionId
+  const { localStream, remoteStream, status, role, toggleTrack } = useWebRTC({ roomId: sessionId, active: true });
 
-  // לחצן פיתוח שמדמה כניסה של שחקן נוסף (מחליף ל-Grid)
-  const addTestParticipant = () => {
-    setParticipants(prev => [...prev, { id: `p${prev.length}`, name: `שחקן ${prev.length}`, isLocal: false, img: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?ixlib=rb-4.0.3&w=1000&q=80' }]);
-  };
-
+  // חיבור הזרמים לאלמנטי הווידאו
   useEffect(() => {
-    const initCamera = async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-        setLocalStream(stream);
-        if (localVideoRef.current) localVideoRef.current.srcObject = stream;
-      } catch (err) { console.error("שגיאת מצלמה:", err); }
-    };
-    initCamera();
-    return () => { if (localStream) localStream.getTracks().forEach(track => track.stop()); };
-  }, []);
+    if (localVideoRef.current && localStream) localVideoRef.current.srcObject = localStream;
+  }, [localStream]);
+  useEffect(() => {
+    if (remoteVideoRef.current && remoteStream) remoteVideoRef.current.srcObject = remoteStream;
+  }, [remoteStream]);
 
   // סנכרון צ'אט
   useEffect(() => {
@@ -293,21 +283,20 @@ export default function VideoRoom({ sessionId, onLeave, isProvider = true, categ
 
   const sendMessage = async (e) => {
     e.preventDefault();
-    if (!newMessage.trim() || !sessionId || !currentUser) return;
+    if (!newMessage.trim() || !sessionId) return;
     const sessionRef = doc(db, 'artifacts', appId, 'public', 'data', 'sessions', sessionId);
+    const senderId = currentUser?.uid || 'guest';
     try {
-      await updateDoc(sessionRef, { messages: arrayUnion({ senderId: currentUser.uid, text: newMessage, timestamp: new Date().toISOString() }) });
+      // setDoc עם merge כדי ליצור את מסמך הסשן אם אינו קיים עדיין
+      await setDoc(sessionRef, { messages: arrayUnion({ senderId, text: newMessage, timestamp: new Date().toISOString() }) }, { merge: true });
       setNewMessage('');
     } catch (error) { console.error("Error sending message:", error); }
   };
 
   const toggleMedia = (type) => {
-    if (localStream) {
-      const tracks = type === 'video' ? localStream.getVideoTracks() : localStream.getAudioTracks();
-      tracks.forEach(track => { track.enabled = !track.enabled; });
-      if (type === 'video') setCameraEnabled(!cameraEnabled);
-      if (type === 'audio') setMicEnabled(!micEnabled);
-    }
+    const enabled = toggleTrack(type === 'video' ? 'video' : 'audio');
+    if (type === 'video') setCameraEnabled(enabled);
+    if (type === 'audio') setMicEnabled(enabled);
   };
 
   const handleEndCall = async () => {
@@ -318,31 +307,34 @@ export default function VideoRoom({ sessionId, onLeave, isProvider = true, categ
     if (onLeave) onLeave();
   };
 
-  // מנוע התצוגה (1-על-1 לעומת גריד קבוצתי)
-  const renderVideoLayout = () => {
-    if (participants.length <= 2) {
-      const p = participants.find(p => !p.isLocal) || participants[0];
-      return (
-        <>
-          <img src={p.img} alt="Remote" className="absolute inset-0 w-full h-full object-cover opacity-80" />
-          <div className="absolute bottom-24 left-6 w-48 h-32 bg-gray-800 rounded-xl overflow-hidden border-2 border-gray-700 z-20 shadow-2xl hover:scale-105 transition-transform duration-300">
-            <video ref={localVideoRef} autoPlay playsInline muted className={`w-full h-full object-cover ${cameraEnabled ? '' : 'hidden'}`} />
-            {!cameraEnabled && <div className="w-full h-full flex flex-col items-center justify-center bg-gray-900"><VideoOff className="w-6 h-6 text-gray-500 mb-1" /></div>}
-          </div>
-        </>
-      );
-    }
-    return (
-      <div className="absolute inset-0 p-6 pt-20 grid gap-4 grid-cols-2 lg:grid-cols-3">
-        {participants.map((p) => (
-          <div key={p.id} className="bg-gray-800 rounded-xl overflow-hidden relative border border-gray-700 shadow-lg">
-            {p.isLocal ? <video ref={localVideoRef} autoPlay playsInline muted className={`w-full h-full object-cover ${cameraEnabled ? '' : 'hidden'}`} /> : <img src={p.img} alt={p.name} className="w-full h-full object-cover" />}
-            <div className="absolute bottom-3 right-3 bg-black/70 backdrop-blur px-3 py-1.5 rounded-lg text-white text-sm font-medium">{p.name} {p.isLocal && '(אתה)'}</div>
-          </div>
-        ))}
+  // תצוגת וידאו 1-על-1 אמיתית (WebRTC)
+  const renderVideoLayout = () => (
+    <>
+      {/* וידאו של הצד השני (מרוחק) */}
+      <video ref={remoteVideoRef} autoPlay playsInline className="absolute inset-0 w-full h-full object-cover bg-black" />
+      {status !== 'connected' && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-900/90 text-center px-6 z-10">
+          {status === 'no-media'
+            ? <VideoOff className="w-14 h-14 text-red-400 mb-4" />
+            : <div className="w-16 h-16 border-4 border-teal-500/30 border-t-teal-400 rounded-full animate-spin mb-4"></div>}
+          <p className="text-white font-bold text-lg">
+            {status === 'no-media' ? 'אין גישה למצלמה' : 'ממתין שהצד השני יצטרף…'}
+          </p>
+          <p className="text-gray-400 text-sm mt-2 max-w-xs">
+            {status === 'no-media'
+              ? 'אשר גישה למצלמה בדפדפן ורענן את הדף (F5)'
+              : 'פתח את אותו קישור חדר במכשיר/כרטיסייה נוספת כדי לחבר שיחה אמיתית בין שני משתתפים'}
+          </p>
+        </div>
+      )}
+      {/* וידאו מקומי (אתה) — תמונה קטנה בפינה */}
+      <div className="absolute bottom-24 left-6 w-48 h-32 bg-gray-800 rounded-xl overflow-hidden border-2 border-gray-700 z-20 shadow-2xl">
+        <video ref={localVideoRef} autoPlay playsInline muted className={`w-full h-full object-cover ${cameraEnabled ? '' : 'hidden'}`} />
+        {!cameraEnabled && <div className="w-full h-full flex flex-col items-center justify-center bg-gray-900"><VideoOff className="w-6 h-6 text-gray-500" /></div>}
+        <div className="absolute bottom-1 right-2 bg-black/50 px-2 py-0.5 rounded text-white text-[10px]">אתה</div>
       </div>
-    );
-  };
+    </>
+  );
 
   return (
     <div className="max-w-7xl mx-auto my-4 bg-gray-900 rounded-2xl overflow-hidden shadow-2xl h-[85vh] flex relative border border-gray-800" dir="rtl">
@@ -361,9 +353,10 @@ export default function VideoRoom({ sessionId, onLeave, isProvider = true, categ
         </div>
 
         <div className="absolute top-4 right-4 z-30 flex gap-2">
-           <button onClick={addTestParticipant} className="bg-gray-800/80 hover:bg-gray-700 text-white px-3 py-1.5 rounded-lg text-xs font-bold backdrop-blur-sm border border-gray-600 flex items-center gap-1 transition-colors">
-             <UserPlus className="w-4 h-4" /> הכנס משתתף נוסף (טסט)
-           </button>
+           <div className={`px-3 py-1.5 rounded-lg text-xs font-bold backdrop-blur-sm border flex items-center gap-1.5 ${status === 'connected' ? 'bg-green-900/50 text-green-300 border-green-600' : 'bg-gray-800/80 text-gray-300 border-gray-600'}`}>
+             <span className={`w-2 h-2 rounded-full ${status === 'connected' ? 'bg-green-400 animate-pulse' : 'bg-amber-400'}`}></span>
+             {status === 'connected' ? 'מחובר' : status === 'no-media' ? 'אין מצלמה' : 'ממתין לחיבור'}
+           </div>
         </div>
 
         {renderVideoLayout()}
