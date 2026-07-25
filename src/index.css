@@ -1,0 +1,12 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ברירת מחדל: RTL + גופן Assistant (נטען ב-index.html) */
+:root {
+  color-scheme: light;
+}
+
+body {
+  font-family: 'Assistant', system-ui, -apple-system, sans-serif;
+}

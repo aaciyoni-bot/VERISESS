@@ -2,12 +2,18 @@
 // VeriSess Backend Server - מנוע כספים והתראות SMS
 // =========================================================
 // דורש התקנת ספריות: npm install express cors stripe twilio dotenv
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 
-// אתחול מנוע הסליקה (Stripe)
-// בפרודקשן נשתמש ב-process.env.STRIPE_SECRET_KEY כדי לא לחשוף את המפתח בקוד
-const stripe = require('stripe')('sk_test_51ThmvWQVqEdHngCF2DRmIPVYtspJ30Lqeylw6LjtdQHgNUqTpGu0PsaXqJM0fX96H59EQAPH5XDI6e96sErznobL00eomIUzuc');
+// אתחול מנוע הסליקה (Stripe) — המפתח הסודי נטען אך ורק מהסביבה (.env)
+// לעולם לא מקבעים מפתח סודי בקוד. ראה backend/.env.example
+const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
+if (!STRIPE_SECRET_KEY) {
+  console.error('❌ חסר STRIPE_SECRET_KEY. צור backend/.env לפי backend/.env.example');
+  process.exit(1);
+}
+const stripe = require('stripe')(STRIPE_SECRET_KEY);
 
 // אתחול מנוע ה-SMS (Twilio) 
 const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID || 'AC_YOUR_TWILIO_SID_HERE'; 

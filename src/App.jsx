@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { initializeApp } from 'firebase/app';
-import { getAuth, onAuthStateChanged, signOut, signInAnonymously } from 'firebase/auth';
-import { getFirestore, doc, onSnapshot, updateDoc, arrayUnion, collection, setDoc } from 'firebase/firestore';
-import { 
+import { app, auth, db, appId } from './firebase.js';
+import {
   ShieldCheck, LogOut, LayoutDashboard, Video, VideoOff, Mic, MicOff, 
   Clock, PhoneCall, MessageSquare, PenTool, AlertTriangle, Send, 
   Users, UserPlus, Crown, Gamepad2, Dices, Eraser, Trash2, Coins, 
@@ -11,19 +9,7 @@ import {
   Bell, Upload, Camera, CreditCard, ChevronLeft, Filter, Star, Settings, Shield, Trophy, Play, ChevronDown, User, UserCheck
 } from 'lucide-react';
 
-// ==========================================
-// 1. אתחול Firebase
-// ==========================================
-let app, auth, db, appId;
-try {
-  const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-  app = initializeApp(firebaseConfig);
-  auth = getAuth(app);
-  db = getFirestore(app);
-  appId = typeof __app_id !== 'undefined' ? __app_id : 'verisess-dev-id';
-} catch (error) {
-  console.error("Firebase Init Error:", error);
-}
+// אתחול Firebase מרוכז ב-./firebase.js (app, auth, db, appId מיובאים למעלה).
 
 // ==========================================
 // 2. ווידג'טים משותפים
