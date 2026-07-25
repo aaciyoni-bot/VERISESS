@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { app, auth, db, appId } from './firebase.js';
+import VideoRoom from './VideoRoom.jsx';
+import GroupRoom from './GroupRoom.jsx';
 import {
   ShieldCheck, LogOut, LayoutDashboard, Video, VideoOff, Mic, MicOff, 
   Clock, PhoneCall, MessageSquare, PenTool, AlertTriangle, Send, 
@@ -346,48 +348,7 @@ const ClientCheckout = ({ expertId, onCancel, onSuccess }) => {
   );
 };
 
-const VideoRoom = ({ sessionId, onLeave, isProvider = true, category = 'therapy' }) => {
-  const [activeTab, setActiveTab] = useState(category === 'therapy' ? 'chat' : 'poker'); 
-  const [isOverlayActive, setIsOverlayActive] = useState(false);
-  const [micEnabled, setMicEnabled] = useState(true);
-  const [cameraEnabled, setCameraEnabled] = useState(true);
-
-  return (
-    <div className="max-w-7xl mx-auto my-4 bg-gray-900 rounded-2xl overflow-hidden shadow-2xl h-[85vh] flex relative border border-gray-800" dir="rtl">
-      <div className="flex-1 relative bg-black flex flex-col overflow-hidden">
-        <div className="absolute top-0 left-0 w-full p-4 flex justify-between items-start z-20">
-          <div className="bg-gray-800/80 text-white px-3 py-1.5 rounded-lg flex items-center gap-2 border border-gray-700 text-sm"><ShieldCheck className="w-4 h-4 text-teal-400" /> חדר וירטואלי</div>
-        </div>
-        <div className="flex-1 flex items-center justify-center">
-          <div className="w-full h-full flex flex-col md:flex-row gap-4 p-8">
-             <div className="flex-1 bg-gray-800 rounded-xl border border-gray-700 flex items-center justify-center"><User className="w-20 h-20 text-gray-600"/></div>
-             <div className="flex-1 bg-gray-800 rounded-xl border border-gray-700 flex items-center justify-center relative">
-               <User className="w-20 h-20 text-gray-600"/>
-               <div className="absolute bottom-4 left-4 bg-black/50 px-2 py-1 rounded text-white text-xs">אתה</div>
-             </div>
-          </div>
-        </div>
-        <div className="bg-gray-900/95 p-4 flex justify-center gap-4 border-t border-gray-800">
-          <button onClick={() => setMicEnabled(!micEnabled)} className={`p-4 rounded-xl ${micEnabled ? 'bg-gray-800 text-white' : 'bg-red-500/20 text-red-500'}`}>{micEnabled ? <Mic className="w-6 h-6" /> : <MicOff className="w-6 h-6" />}</button>
-          <button onClick={() => setCameraEnabled(!cameraEnabled)} className={`p-4 rounded-xl ${cameraEnabled ? 'bg-gray-800 text-white' : 'bg-red-500/20 text-red-500'}`}>{cameraEnabled ? <Video className="w-6 h-6" /> : <VideoOff className="w-6 h-6" />}</button>
-          <button onClick={onLeave} className="px-8 py-4 bg-red-600 text-white font-bold flex items-center gap-2 rounded-xl"><PhoneCall className="w-5 h-5 transform rotate-[135deg]" /> עזוב</button>
-        </div>
-      </div>
-      <div className="w-[400px] bg-gray-50 flex flex-col border-l border-gray-200">
-        <div className="flex bg-white border-b border-gray-200 p-1">
-          <button onClick={() => setActiveTab('chat')} className={`flex-1 py-2 text-xs font-bold rounded-lg ${activeTab === 'chat' ? 'bg-blue-50 text-blue-700' : 'text-gray-500'}`}>צ'אט</button>
-          <button onClick={() => setActiveTab('whiteboard')} className={`flex-1 py-2 text-xs font-bold rounded-lg ${activeTab === 'whiteboard' ? 'bg-teal-50 text-teal-700' : 'text-gray-500'}`}>לוח</button>
-          <button onClick={() => setActiveTab('poker')} className={`flex-1 py-2 text-xs font-bold rounded-lg ${activeTab === 'poker' ? 'bg-amber-100 text-amber-700' : 'text-gray-500'}`}>פוקר</button>
-        </div>
-        <div className="flex-1 overflow-hidden p-2">
-          {activeTab === 'chat' && <div className="h-full flex flex-col justify-end p-4"><div className="bg-white border rounded-full p-1 flex"><input type="text" placeholder="הודעה..." className="flex-1 px-3 outline-none"/><button className="bg-teal-500 p-2 rounded-full text-white"><Send className="w-4 h-4"/></button></div></div>}
-          {activeTab === 'whiteboard' && <WhiteboardWidget />}
-          {activeTab === 'poker' && <div className="h-full w-full bg-slate-950 rounded-xl relative p-1"><PokerWidget isHost={isProvider} mode={category === 'class' ? 'play' : 'real'} /></div>}
-        </div>
-      </div>
-    </div>
-  );
-};
+// VideoRoom ו-GroupRoom מיובאים כקומפוננטות אמיתיות מהקבצים הנפרדים (ראה imports למעלה).
 
 const AdminPanel = () => {
   return (
@@ -498,8 +459,25 @@ export default function App() {
       <button onClick={() => setCurrentView('marketplace')} className="hover:text-white transition-colors">מרקטפלייס (לקוח)</button><span>|</span>
       <button onClick={() => setCurrentView('onboarding')} className="hover:text-white transition-colors">הרשמת מטפל</button><span>|</span>
       <button onClick={() => setCurrentView('dashboard')} className="hover:text-white transition-colors">דאשבורד מטפל</button><span>|</span>
-      <button onClick={() => setCurrentView('poker_lobby')} className="text-amber-400 font-bold hover:text-amber-300 transition-colors">מועדון פוקר</button><span>|</span>
+      <button onClick={() => { setRoomCategory('class'); setTestSessionId('sess_class'); setCurrentView('videoRoom'); }} className="text-teal-400 font-bold hover:text-teal-300 transition-colors">חוגים</button><span>|</span>
       <button onClick={() => setCurrentView('admin')} className="text-red-400 font-bold hover:text-red-300 transition-colors bg-red-900/30 px-2 py-1 rounded">אדמין</button>
+      <span className="text-gray-600">‖</span>
+      <span className="text-teal-400 font-bold">חדרים:</span>
+      {[
+        { id: 'therapy', name: 'טיפולי' },
+        { id: 'business', name: 'עסקי/משפטי' },
+        { id: 'class', name: 'לימוד/חוג' },
+        { id: 'gaming', name: 'משחקים' },
+        { id: 'group', name: 'קבוצתי' },
+      ].map((r) => (
+        <button
+          key={r.id}
+          onClick={() => { setRoomCategory(r.id); setTestSessionId(`sess_${r.id}`); setCurrentView('videoRoom'); }}
+          className="hover:text-white text-teal-300 transition-colors"
+        >
+          {r.name}
+        </button>
+      ))}
     </div>
   );
 
@@ -551,7 +529,9 @@ export default function App() {
       {currentView === 'onboarding' && <ProviderOnboarding onComplete={() => setCurrentView('dashboard')} />}
       {currentView === 'dashboard' && <ProviderDashboard />}
       {currentView === 'checkout' && <div className="p-8 flex-1 bg-gray-50 flex items-center justify-center"><ClientCheckout expertId={selectedExpertId} onCancel={() => setCurrentView('marketplace')} onSuccess={(sessionId) => { setTestSessionId(sessionId); setCurrentView('videoRoom'); }} /></div>}
-      {currentView === 'videoRoom' && <VideoRoom sessionId={testSessionId} onLeave={() => setCurrentView('welcome')} isProvider={false} category={roomCategory} />}
+      {currentView === 'videoRoom' && (roomCategory === 'group'
+        ? <GroupRoom sessionId={testSessionId} onLeave={() => setCurrentView('welcome')} isHost={false} />
+        : <VideoRoom sessionId={testSessionId} onLeave={() => setCurrentView('welcome')} isProvider={false} category={roomCategory} />)}
       {currentView === 'admin' && <AdminPanel />}
       {currentView === 'poker_lobby' && <PokerLobby />}
 

@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { getFirestore, doc, onSnapshot, updateDoc, arrayUnion } from 'firebase/firestore';
+import { doc, onSnapshot, updateDoc, arrayUnion } from 'firebase/firestore';
+import { auth, db, appId } from './firebase.js';
 import { 
   ShieldCheck, Video, VideoOff, Mic, MicOff, Clock, 
   PhoneCall, MessageSquare, PenTool, Users, ShieldAlert,
@@ -9,16 +8,7 @@ import {
   Eraser, Trash2, Crown, DollarSign, HandCoins, Eye, EyeOff, Coins
 } from 'lucide-react';
 
-let app, auth, db, appId;
-try {
-  const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-  app = initializeApp(firebaseConfig);
-  auth = getAuth(app);
-  db = getFirestore(app);
-  appId = typeof __app_id !== 'undefined' ? __app_id : 'verisess-dev-id';
-} catch (error) {
-  console.error("Firebase Init Error:", error);
-}
+// Firebase מיובא מ-./firebase.js (auth, db, appId)
 
 // ==========================================
 // ווידג'ט לוח לבן פנימי
