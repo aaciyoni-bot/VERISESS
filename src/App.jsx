@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { app, auth, db, appId } from './firebase.js';
 import VideoRoom from './VideoRoom.jsx';
 import GroupRoom from './GroupRoom.jsx';
+import { signInAnonymously, onAuthStateChanged } from 'firebase/auth';
+import { collection, onSnapshot } from 'firebase/firestore';
 import {
   ShieldCheck, LogOut, LayoutDashboard, Video, VideoOff, Mic, MicOff, 
   Clock, PhoneCall, MessageSquare, PenTool, AlertTriangle, Send, 
@@ -209,11 +211,24 @@ const Marketplace = ({ onSelectExpert }) => {
     { id: 'mysticism', name: 'רוחניות ותקשור' }
   ];
 
-  const experts = [
+  // קריאה חיה של מומחים מאושרים מ-Firestore (collection: providers).
+  // כל עוד אין נתונים — מציגים רשימת ברירת מחדל.
+  const FALLBACK_EXPERTS = [
     { id: 'e1', displayName: 'ד"ר יעל שרת', category: 'psychology', rate: 450, isOnline: true, rating: '5.0', tags: ['דיכאון', 'חרדה'] },
     { id: 'e2', displayName: 'עו"ד דניאל כהן', category: 'law', rate: 600, isOnline: false, rating: '4.8', tags: ['גירושין', 'משמורת'] },
     { id: 'e3', displayName: 'שולחן פוקר קבוצתי', category: 'gaming', rate: 100, isOnline: true, rating: '4.9', tags: ['PLO5', 'Cash Game'] }
   ];
+  const [experts, setExperts] = useState(FALLBACK_EXPERTS);
+  useEffect(() => {
+    if (!db) return;
+    const unsub = onSnapshot(collection(db, 'providers'), (snap) => {
+      const list = snap.docs
+        .map((d) => ({ id: d.id, ...d.data() }))
+        .filter((p) => p.status === 'approved');
+      if (list.length) setExperts(list);
+    }, (err) => console.error('[VeriSess] טעינת מומחים נכשלה:', err));
+    return () => unsub();
+  }, []);
 
   const filteredExperts = experts.filter(expert => {
     const matchesCategory = selectedCategory === 'all' || expert.category === selectedCategory;
@@ -445,10 +460,21 @@ const PokerLobby = () => {
 // 6. הנתב המרכזי
 // ==========================================
 export default function App() {
-  const [currentView, setCurrentView] = useState('welcome'); 
+  const [currentView, setCurrentView] = useState('welcome');
   const [testSessionId, setTestSessionId] = useState(`sess_${Date.now()}`);
   const [selectedExpertId, setSelectedExpertId] = useState(null);
-  const [roomCategory, setRoomCategory] = useState('therapy'); 
+  const [roomCategory, setRoomCategory] = useState('therapy');
+  const [authUser, setAuthUser] = useState(null);
+
+  // התחברות אנונימית אוטומטית — כל מבקר מקבל זהות אמיתית (uid) לצ'אט/וידאו/ארנק
+  useEffect(() => {
+    if (!auth) return;
+    const unsub = onAuthStateChanged(auth, (user) => {
+      if (user) setAuthUser(user);
+      else signInAnonymously(auth).catch((e) => console.error('[VeriSess] התחברות אנונימית נכשלה:', e));
+    });
+    return () => unsub();
+  }, []); 
 
   const DevNavigationBar = () => (
     <div className="bg-gray-900 text-gray-300 text-xs py-2 px-4 flex flex-wrap gap-4 items-center justify-center border-b-4 border-red-500 shadow-md" dir="rtl">

@@ -6,16 +6,15 @@ service cloud.firestore {
     function isOwner(uid) { return signedIn() && request.auth.uid == uid; }
 
     // אזור נתונים ציבורי לפגישות, צ'אט וסיגנלינג WebRTC (offer/answer/ICE).
-    // ⚠️ פיילוט: פתוח ללא התחברות כדי שהווידאו/צ'אט יעבדו מיד. לאחר הפעלת
-    //    Authentication יש להחזיר ל-`if signedIn()`.
+    // דורש התחברות (כולל אנונימית) — האפליקציה מתחברת אוטומטית בעלייה.
     match /artifacts/{appId}/public/data/{document=**} {
-      allow read, write: if true;
+      allow read, write: if signedIn();
     }
 
-    // חדרי וידאו 1-על-1 (סיגנלינג WebRTC) — פתוח לפיילוט
+    // חדרי וידאו 1-על-1 (סיגנלינג WebRTC)
     match /rooms/{roomId} {
-      allow read, write: if true;
-      match /{sub=**} { allow read, write: if true; }
+      allow read, write: if signedIn();
+      match /{sub=**} { allow read, write: if signedIn(); }
     }
 
     // פרופילי מומחים: קטלוג ציבורי; עריכה לבעלים; status (KYC) למנהל בלבד
