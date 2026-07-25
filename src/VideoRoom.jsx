@@ -395,8 +395,16 @@ export default function VideoRoom({ sessionId, onLeave, isProvider = true, categ
           
           {activeTab === 'chat' && (
             <div className="h-full flex flex-col">
-              <div className="flex-1 overflow-y-auto space-y-3 mb-4 pr-1">
-                 <div className="text-center text-gray-400 text-sm mt-10">הצ'אט מוצפן מקצה לקצה.</div>
+              <div className="flex-1 overflow-y-auto space-y-2 mb-4 pr-1">
+                {messages.length === 0 && <div className="text-center text-gray-400 text-sm mt-10">הצ'אט מוצפן מקצה לקצה.</div>}
+                {messages.map((m, i) => {
+                  const mine = m.senderId === (currentUser?.uid || 'guest');
+                  return (
+                    <div key={i} className={`flex ${mine ? 'justify-start' : 'justify-end'}`}>
+                      <div className={`max-w-[80%] px-3 py-2 rounded-2xl text-sm shadow-sm ${mine ? 'bg-teal-500 text-white rounded-br-sm' : 'bg-white border border-gray-200 text-gray-800 rounded-bl-sm'}`}>{m.text}</div>
+                    </div>
+                  );
+                })}
               </div>
               <form onSubmit={sendMessage} className="flex gap-2 bg-white p-1 rounded-full border border-gray-200 shadow-sm">
                 <input type="text" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} placeholder="הקלד הודעה..." className="flex-1 bg-transparent px-4 py-2 text-sm focus:outline-none" />
