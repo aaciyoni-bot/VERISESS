@@ -10,6 +10,7 @@ import { TRANZILA_CONFIGURED, buildTranzilaUrl } from './lib/config.js';
 export default function Checkout({ expert, user, sessionType = 'scheduled', onCancel, onSuccess }) {
   const [phase, setPhase] = useState('summary'); // summary | pay | done | error
   const [error, setError] = useState('');
+  const [agreed, setAgreed] = useState(false);
   const processedRef = useRef(false);
 
   const amount = Number(expert?.rate) || 0;
@@ -85,9 +86,15 @@ export default function Checkout({ expert, user, sessionType = 'scheduled', onCa
               <p className="text-amber-700 text-xs mt-1">מסוף טרנזילה טרם הוגדר. לאחר הגדרת ה-Supplier התשלום יעבוד באופן מלא.</p>
             </div>
           ) : (
-            <button onClick={() => setPhase('pay')} className="w-full bg-teal-500 hover:bg-teal-600 text-white font-bold py-4 rounded-xl transition-colors flex items-center justify-center gap-2 shadow-md">
-              <CreditCard className="w-5 h-5" /> מעבר לתשלום מאובטח
-            </button>
+            <>
+              <label className="flex items-start gap-2 text-xs text-gray-600 cursor-pointer bg-gray-50 border border-gray-200 rounded-xl p-3">
+                <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="mt-0.5 w-4 h-4 accent-teal-600" />
+                <span>אני מאשר/ת את <b>תנאי השימוש והתקנון</b>, את <b>מדיניות הפרטיות</b> ואת <b>מדיניות הביטולים</b>, ומבין/ה כי VeriSess היא פלטפורמת תיווך בלבד ואינה אחראית לשירות המקצועי.</span>
+              </label>
+              <button onClick={() => agreed && setPhase('pay')} disabled={!agreed} className="w-full bg-teal-500 hover:bg-teal-600 text-white font-bold py-4 rounded-xl transition-colors flex items-center justify-center gap-2 shadow-md disabled:opacity-50 disabled:cursor-not-allowed">
+                <CreditCard className="w-5 h-5" /> מעבר לתשלום מאובטח
+              </button>
+            </>
           )}
           <p className="text-center text-gray-400 text-xs flex items-center justify-center gap-1">
             <Lock className="w-3 h-3" /> התשלום מתבצע בדף המאובטח של טרנזילה (PCI DSS)

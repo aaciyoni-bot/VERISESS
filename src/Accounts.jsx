@@ -26,9 +26,13 @@ export function LoginScreen({ onDone, title = 'כניסה ל-VeriSess' }) {
   const [name, setName] = useState('');
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
+  const [agreed, setAgreed] = useState(false);
+
+  const needsConsent = mode === 'signup';
 
   const handleEmail = async (e) => {
     e.preventDefault();
+    if (needsConsent && !agreed) { setErr('יש לאשר את תנאי השימוש ומדיניות הפרטיות'); return; }
     setErr(''); setBusy(true);
     try {
       if (mode === 'signup') await signUpEmail(email, password, name);
@@ -40,6 +44,7 @@ export function LoginScreen({ onDone, title = 'כניסה ל-VeriSess' }) {
   };
 
   const handleGoogle = async () => {
+    if (!agreed) { setErr('יש לאשר את תנאי השימוש ומדיניות הפרטיות'); return; }
     setErr(''); setBusy(true);
     try { await signInWithGoogle(); onDone && onDone(); }
     catch (e2) { setErr(translateAuthError(e2?.code)); }
@@ -55,6 +60,10 @@ export function LoginScreen({ onDone, title = 'כניסה ל-VeriSess' }) {
           <p className="text-blue-200 text-xs mt-1">{mode === 'signup' ? 'יצירת חשבון חדש' : 'התחברות לחשבון קיים'}</p>
         </div>
         <div className="p-6 space-y-4">
+          <label className="flex items-start gap-2 text-xs text-gray-600 cursor-pointer bg-gray-50 border border-gray-200 rounded-xl p-3">
+            <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="mt-0.5 w-4 h-4 accent-teal-600" />
+            <span>קראתי ואני מסכים/ה ל<b>תנאי השימוש והתקנון</b>, ל<b>מדיניות הפרטיות</b> ול<b>הצהרת הנגישות</b> של VeriSess (זמינים בתחתית העמוד).</span>
+          </label>
           <button onClick={handleGoogle} disabled={busy} className="w-full flex items-center justify-center gap-3 border border-gray-300 rounded-xl py-3 font-bold text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50">
             <GoogleIcon /> המשך עם Google
           </button>
@@ -100,6 +109,7 @@ export function ProviderOnboarding({ user, onComplete }) {
   const [form, setForm] = useState({ displayName: '', category: 'psychology', rate: 300, bio: '', tags: '' });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
+  const [agreed, setAgreed] = useState(false);
 
   useEffect(() => {
     if (!user || !db) { setLoading(false); return; }
@@ -136,6 +146,7 @@ export function ProviderOnboarding({ user, onComplete }) {
 
   const submit = async (e) => {
     e.preventDefault();
+    if (!agreed) { setErr('יש לאשר את תנאי השימוש כדי להצטרף'); return; }
     setBusy(true); setErr('');
     try {
       await setDoc(doc(db, 'providers', user.uid), {
@@ -176,6 +187,10 @@ export function ProviderOnboarding({ user, onComplete }) {
           </div>
           <Field label="תיאור קצר"><textarea value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })} rows={3} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-teal-500 resize-none" /></Field>
           <Field label="תגיות (מופרדות בפסיק)"><input value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} placeholder="חרדה, זוגיות" className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-teal-500" /></Field>
+          <label className="flex items-start gap-2 text-xs text-gray-600 cursor-pointer bg-gray-50 border border-gray-200 rounded-xl p-3">
+            <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="mt-0.5 w-4 h-4 accent-teal-600" />
+            <span>אני מצהיר/ה כי אני ספק/ית עצמאי/ת האחראי/ת בלעדית לשירותיי, לרישיונותיי ולעמידה בכל דין, ומאשר/ת את <b>תנאי השימוש והתקנון</b> ואת <b>מדיניות הפרטיות</b>.</span>
+          </label>
           {err && <p className="text-red-500 text-sm text-center">{err}</p>}
           <button type="submit" disabled={busy} className="w-full bg-teal-500 hover:bg-teal-600 text-white font-bold py-3 rounded-xl transition-colors disabled:opacity-50">
             {busy ? 'שולח…' : 'שלח בקשת הצטרפות'}
