@@ -8,6 +8,7 @@ import { LoginScreen, ProviderOnboarding, AdminPanel } from './Accounts.jsx';
 import Checkout from './Checkout.jsx';
 import Home from './Home.jsx';
 import { Terms, Privacy, AccessibilityPage, Contact, Footer } from './Legal.jsx';
+import AccessibilityWidget from './Accessibility.jsx';
 import { logout, isAdminUser } from './lib/auth.js';
 import {
   ShieldCheck, LogOut, LayoutDashboard, Video, VideoOff, Mic, MicOff, 
@@ -514,6 +515,9 @@ export default function App() {
       {currentView === 'contact' && <Contact />}
 
       {currentView !== 'videoRoom' && currentView !== 'checkout' && <Footer onNav={setCurrentView} />}
+
+      {/* סרגל נגישות — בכל דף (ת"י 5568) */}
+      <AccessibilityWidget onStatement={() => setCurrentView('accessibility')} />
     </div>
   );
 }
