@@ -6,6 +6,8 @@ import { signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 import { collection, onSnapshot, doc, updateDoc, query, where } from 'firebase/firestore';
 import { LoginScreen, ProviderOnboarding, AdminPanel } from './Accounts.jsx';
 import Checkout from './Checkout.jsx';
+import Home from './Home.jsx';
+import { Terms, Privacy, AccessibilityPage, Contact, Footer } from './Legal.jsx';
 import { logout, isAdminUser } from './lib/auth.js';
 import {
   ShieldCheck, LogOut, LayoutDashboard, Video, VideoOff, Mic, MicOff, 
@@ -492,33 +494,9 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans flex flex-col">
-      {currentView !== 'welcome' && currentView !== 'videoRoom' && <GlobalNavbar />}
+      {currentView !== 'videoRoom' && <GlobalNavbar />}
 
-      {currentView === 'welcome' && (
-        <div className="flex-1 flex flex-col items-center justify-center p-4 bg-gradient-to-b from-blue-900 to-gray-900" dir="rtl">
-          <div className="text-center mb-16 animate-in fade-in zoom-in duration-700">
-            <ShieldCheck className="w-24 h-24 text-teal-400 mx-auto mb-6 drop-shadow-[0_0_15px_rgba(45,212,191,0.3)]" />
-            <h1 className="text-6xl font-black text-white mb-4 tracking-tight">Veri<span className="text-teal-400">Sess</span></h1>
-            <p className="text-xl text-blue-200 max-w-lg mx-auto">קליניקה וירטואלית מאובטחת. מפגשי ייעוץ 1-על-1 ושיחות SOS, מוצפנים מקצה לקצה.</p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl w-full">
-            <div className="bg-white rounded-3xl p-10 shadow-2xl border border-gray-100 flex flex-col items-center text-center cursor-pointer hover:-translate-y-2 transition-transform duration-300" onClick={() => setCurrentView('marketplace')}>
-              <h2 className="text-3xl font-bold text-blue-900 mb-4">אני מחפש שירות</h2>
-              <p className="text-gray-500 mb-8">איתור מומחים זמינים לשיחת וידאו מיידית. סליקה מאובטחת ושמירה על פרטיות מלאה.</p>
-              <button className="mt-auto w-full bg-teal-500 text-white font-bold py-4 rounded-xl shadow-lg text-lg">היכנס כלקוח</button>
-            </div>
-            <div className="bg-blue-800 rounded-3xl p-10 shadow-2xl border border-blue-700 flex flex-col items-center text-center">
-              <h2 className="text-3xl font-bold text-white mb-4">אני מומחה / מטפל</h2>
-              <p className="text-blue-200 mb-8">הגדרת קליניקה דיגיטלית ב-5 דקות. אימות זהות (KYC), יומן מתקדם וכפתור זמינות SOS.</p>
-              <div className="mt-auto w-full flex flex-col gap-3">
-                <button onClick={() => setCurrentView('onboarding')} className="w-full bg-white text-blue-900 font-bold py-4 rounded-xl shadow-md text-lg">בקשת הצטרפות</button>
-                <button onClick={() => setCurrentView('dashboard')} className="w-full bg-transparent text-white border border-blue-600 font-bold py-3 rounded-xl">כניסת רשומים ללוח הבקרה</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {currentView === 'welcome' && <Home onFindExpert={() => setCurrentView('marketplace')} onProviderSignup={() => setCurrentView('onboarding')} />}
 
       {currentView === 'marketplace' && <Marketplace onSelectExpert={(expert) => { setSelectedExpert(expert); setSelectedExpertId(expert?.id); setRoomCategory(expert?.category === 'gaming' ? 'gaming' : 'therapy'); setCurrentView('checkout'); }} />}
       {currentView === 'login' && <LoginScreen onDone={() => setCurrentView('marketplace')} />}
@@ -530,7 +508,12 @@ export default function App() {
         : <VideoRoom sessionId={testSessionId} onLeave={() => setCurrentView('welcome')} isProvider={false} category={roomCategory} />)}
       {currentView === 'admin' && <AdminPanel user={authUser} />}
       {currentView === 'poker_lobby' && <PokerLobby />}
+      {currentView === 'terms' && <Terms />}
+      {currentView === 'privacy' && <Privacy />}
+      {currentView === 'accessibility' && <AccessibilityPage />}
+      {currentView === 'contact' && <Contact />}
 
+      {currentView !== 'videoRoom' && currentView !== 'checkout' && <Footer onNav={setCurrentView} />}
     </div>
   );
 }
