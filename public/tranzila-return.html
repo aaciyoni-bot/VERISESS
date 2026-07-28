@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <title>VeriSess — אישור תשלום</title>
+  <style>
+    body { font-family: 'Assistant', system-ui, sans-serif; background:#f9fafb; color:#1e3a8a;
+           display:flex; align-items:center; justify-content:center; height:100vh; margin:0; text-align:center; }
+    .box { padding:24px; }
+    .spin { width:40px; height:40px; border:4px solid #ccfbf1; border-top-color:#14b8a6;
+            border-radius:50%; animation:spin 1s linear infinite; margin:0 auto 16px; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <div class="spin"></div>
+    <p>מעבד את אישור התשלום…</p>
+  </div>
+  <script>
+    // טרנזילה מוסיפה את תוצאת העסקה כפרמטרים ב-URL (Response=000 = הצלחה).
+    (function () {
+      var p = new URLSearchParams(location.search);
+      var data = {};
+      p.forEach(function (v, k) { data[k] = v; });
+      var ok = data.Response === '000' || data.response === '000';
+      var msg = { source: 'tranzila', success: ok, data: data };
+      try { if (window.parent && window.parent !== window) window.parent.postMessage(msg, '*'); } catch (e) {}
+      // גיבוי: אם נפתח כדף מלא (לא iframe) — חוזרים לאתר עם התוצאה
+      if (window.parent === window) {
+        location.replace('/?tranzila=' + (ok ? 'ok' : 'fail'));
+      }
+    })();
+  </script>
+</body>
+</html>
