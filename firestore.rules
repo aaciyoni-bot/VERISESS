@@ -72,6 +72,17 @@ service cloud.firestore {
       allow read, write: if isOwner(uid);
     }
 
+    // צ'אט אסינכרוני — רק המשתתפים בשיחה
+    match /messages/{id} {
+      allow read: if signedIn() && request.auth.uid in resource.data.participants;
+      allow create: if signedIn() && request.auth.uid in request.resource.data.participants;
+      allow update, delete: if false;
+    }
+    match /threads/{id} {
+      allow read: if signedIn() && request.auth.uid in resource.data.participants;
+      allow write: if signedIn() && request.auth.uid in request.resource.data.participants;
+    }
+
     // ביקורות ודירוגים — קריאה ציבורית, יצירה למשתמש מחובר, ללא עריכה/מחיקה
     match /reviews/{id} {
       allow read: if true;

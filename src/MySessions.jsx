@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Video, Star, Clock, CheckCircle, Calendar, X } from 'lucide-react';
+import { Video, Star, Clock, CheckCircle, Calendar, X, MessageCircle } from 'lucide-react';
 import { collection, query, where, onSnapshot, addDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from './firebase.js';
 import { googleCalendarUrl } from './lib/notify.js';
+import ChatThread from './ChatThread.jsx';
 
 export default function MySessions({ user, onEnterRoom, onFindExpert }) {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [ratingFor, setRatingFor] = useState(null);
+  const [chatWith, setChatWith] = useState(null);
 
   useEffect(() => {
     if (!user || !db) { setLoading(false); return; }
@@ -53,6 +55,7 @@ export default function MySessions({ user, onEnterRoom, onFindExpert }) {
                 </div>
                 <div className="flex gap-2 shrink-0">
                   <button onClick={() => onEnterRoom(b)} className="bg-blue-900 hover:bg-blue-800 text-white text-sm font-bold px-4 py-2 rounded-lg flex items-center gap-1"><Video className="w-4 h-4" /> לחדר</button>
+                  {b.providerId && <button onClick={() => setChatWith({ uid: b.providerId, name: b.providerName || 'מומחה' })} className="bg-gray-50 hover:bg-gray-100 text-gray-700 text-sm font-bold px-4 py-2 rounded-lg flex items-center gap-1"><MessageCircle className="w-4 h-4" /> צ׳אט</button>}
                   {b.slotStart && (
                     <a href={googleCalendarUrl({ title: `פגישת VeriSess עם ${b.providerName || 'מומחה'}`, startMs: b.slotStart })} target="_blank" rel="noreferrer" className="bg-gray-50 hover:bg-gray-100 text-gray-700 text-sm font-bold px-4 py-2 rounded-lg flex items-center gap-1"><Calendar className="w-4 h-4" /> יומן</a>
                   )}
@@ -66,6 +69,7 @@ export default function MySessions({ user, onEnterRoom, onFindExpert }) {
       </div>
 
       {ratingFor && <RatingModal booking={ratingFor} user={user} onClose={() => setRatingFor(null)} />}
+      {chatWith && <ChatThread user={user} otherUid={chatWith.uid} otherName={chatWith.name} onClose={() => setChatWith(null)} />}
     </div>
   );
 }
