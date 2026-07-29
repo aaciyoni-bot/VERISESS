@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import {
   ShieldCheck, Mail, Lock, User, LogIn, CheckCircle, Clock, XCircle, Wallet, AlertTriangle, Zap,
 } from 'lucide-react';
-import { doc, setDoc, updateDoc, onSnapshot, collection, getDoc } from 'firebase/firestore';
+import { doc, setDoc, updateDoc, onSnapshot, collection, getDoc, deleteDoc } from 'firebase/firestore';
 import { db } from './firebase.js';
-import { signInWithGoogle, signUpEmail, signInEmail, isAdminUser } from './lib/auth.js';
+import { signInWithGoogle, signUpEmail, signInEmail, isAdminUser, sendReset, deleteAccount } from './lib/auth.js';
 
 const CATEGORIES = [
   { id: 'psychology', name: 'פסיכולוגיה' },
@@ -51,6 +51,14 @@ export function LoginScreen({ onDone, title = 'כניסה ל-VeriSess' }) {
     finally { setBusy(false); }
   };
 
+  const [resetMsg, setResetMsg] = useState('');
+  const handleReset = async () => {
+    setErr(''); setResetMsg('');
+    if (!email) { setErr('הזן אימייל לאיפוס הסיסמה'); return; }
+    try { await sendReset(email); setResetMsg('נשלח מייל לאיפוס הסיסמה. בדוק את תיבת הדואר.'); }
+    catch (e2) { setErr(translateAuthError(e2?.code)); }
+  };
+
   return (
     <div className="min-h-[80vh] flex items-center justify-center p-4" dir="rtl">
       <div className="bg-white rounded-3xl shadow-xl border border-gray-100 w-full max-w-md overflow-hidden">
@@ -88,6 +96,10 @@ export function LoginScreen({ onDone, title = 'כניסה ל-VeriSess' }) {
               {busy ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <><LogIn className="w-4 h-4" /> {mode === 'signup' ? 'הרשמה' : 'כניסה'}</>}
             </button>
           </form>
+          {resetMsg && <p className="text-green-600 text-sm text-center">{resetMsg}</p>}
+          {mode === 'login' && (
+            <button onClick={handleReset} className="block w-full text-center text-xs text-gray-500 hover:text-teal-600">שכחתי סיסמה</button>
+          )}
           <p className="text-center text-sm text-gray-500">
             {mode === 'signup' ? 'כבר יש לך חשבון?' : 'אין לך חשבון?'}{' '}
             <button onClick={() => { setMode(mode === 'signup' ? 'login' : 'signup'); setErr(''); }} className="text-teal-600 font-bold hover:underline">
@@ -246,6 +258,14 @@ export function AdminPanel({ user }) {
     finally { setBusyId(null); }
   };
 
+  const removeProvider = async (id, name) => {
+    if (!window.confirm(`להסיר לצמיתות את "${name}"? פרופיל המומחה יימחק מהקטלוג.`)) return;
+    setBusyId(id);
+    try { await deleteDoc(doc(db, 'providers', id)); }
+    catch (e) { alert('הסרה נכשלה: ' + (e?.code || e?.message)); }
+    finally { setBusyId(null); }
+  };
+
   const pending = providers.filter((p) => p.status === 'pending');
   const approved = providers.filter((p) => p.status === 'approved');
 
@@ -294,6 +314,7 @@ export function AdminPanel({ user }) {
             <div className="flex gap-2 shrink-0">
               <button onClick={() => setStatus(p.id, 'approved')} disabled={busyId === p.id} className="bg-green-500 hover:bg-green-600 text-white text-sm font-bold px-4 py-2 rounded-lg flex items-center gap-1 disabled:opacity-50"><CheckCircle className="w-4 h-4" /> אשר</button>
               <button onClick={() => setStatus(p.id, 'rejected')} disabled={busyId === p.id} className="bg-gray-100 hover:bg-red-50 text-red-500 text-sm font-bold px-4 py-2 rounded-lg flex items-center gap-1 disabled:opacity-50"><XCircle className="w-4 h-4" /> דחה</button>
+              <button onClick={() => removeProvider(p.id, p.displayName)} disabled={busyId === p.id} className="text-gray-400 hover:text-red-600 text-sm font-bold px-2 disabled:opacity-50" title="הסר לצמיתות">הסר</button>
             </div>
           </div>
         ))}
@@ -304,9 +325,47 @@ export function AdminPanel({ user }) {
         {approved.map((p) => (
           <div key={p.id} className="bg-white rounded-xl border border-gray-100 p-4 flex items-center justify-between">
             <div><div className="font-bold text-gray-800">{p.displayName}</div><div className="text-gray-400 text-xs">{CATEGORIES.find((c) => c.id === p.category)?.name || p.category}</div></div>
-            <button onClick={() => setStatus(p.id, 'pending')} className="text-xs text-gray-400 hover:text-red-500">השהה</button>
+            <div className="flex gap-3">
+              <button onClick={() => setStatus(p.id, 'pending')} className="text-xs text-gray-400 hover:text-amber-600">השהה</button>
+              <button onClick={() => removeProvider(p.id, p.displayName)} className="text-xs text-gray-400 hover:text-red-600">הסר</button>
+            </div>
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+// =========================================================
+// הגדרות חשבון — כולל מחיקת חשבון (זכות להימחק)
+// =========================================================
+export function AccountSettings({ user, onDeleted }) {
+  const [busy, setBusy] = useState(false);
+  if (!user) return <div className="p-10 text-center text-gray-500" dir="rtl">נדרשת התחברות.</div>;
+
+  const del = async () => {
+    if (!window.confirm('למחוק את חשבונך לצמיתות? הפעולה בלתי הפיכה ותמחק את הפרופיל שלך.')) return;
+    setBusy(true);
+    try { await deleteAccount(); onDeleted && onDeleted(); }
+    catch (e) {
+      if (e?.code === 'auth/requires-recent-login') alert('מטעמי אבטחה יש להתחבר מחדש לפני מחיקת החשבון. התנתק, התחבר שוב, ונסה שוב.');
+      else alert('מחיקה נכשלה: ' + (e?.code || e?.message));
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <div dir="rtl" className="min-h-[70vh] flex items-center justify-center p-4">
+      <div className="bg-white rounded-3xl shadow-xl border border-gray-100 max-w-md w-full p-8">
+        <h2 className="text-xl font-bold mb-1">הגדרות חשבון</h2>
+        <p className="text-gray-500 text-sm mb-6">{user.displayName || user.email || 'משתמש'}</p>
+
+        <div className="border border-red-200 bg-red-50 rounded-2xl p-5">
+          <h3 className="font-bold text-red-700 mb-1">מחיקת חשבון</h3>
+          <p className="text-red-600 text-sm mb-4">מחיקה לצמיתות של החשבון והפרופיל שלך. פעולה בלתי הפיכה.</p>
+          <button onClick={del} disabled={busy} className="bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 px-5 rounded-xl disabled:opacity-50">
+            {busy ? 'מוחק…' : 'מחק את חשבוני'}
+          </button>
+        </div>
       </div>
     </div>
   );

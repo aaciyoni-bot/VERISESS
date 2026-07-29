@@ -4,7 +4,7 @@ import VideoRoom from './VideoRoom.jsx';
 import GroupRoom from './GroupRoom.jsx';
 import { signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 import { collection, onSnapshot, doc, updateDoc, query, where } from 'firebase/firestore';
-import { LoginScreen, ProviderOnboarding, AdminPanel } from './Accounts.jsx';
+import { LoginScreen, ProviderOnboarding, AdminPanel, AccountSettings } from './Accounts.jsx';
 import Checkout from './Checkout.jsx';
 import ExpertProfile from './ExpertProfile.jsx';
 import MySessions from './MySessions.jsx';
@@ -513,7 +513,7 @@ export default function App() {
         )}
         {authUser && !authUser.isAnonymous ? (
           <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-600 hidden sm:block">{authUser.displayName || authUser.email}</span>
+            <button onClick={() => setCurrentView('account')} className="text-sm text-gray-600 hover:text-blue-900 hidden sm:block" title="הגדרות חשבון">{authUser.displayName || authUser.email}</button>
             <button onClick={() => { logout(); setCurrentView('welcome'); }} className="text-sm font-bold text-gray-500 hover:text-red-500 px-3 py-2">יציאה</button>
           </div>
         ) : (
@@ -548,6 +548,7 @@ export default function App() {
       {currentView === 'privacy' && <Privacy />}
       {currentView === 'accessibility' && <AccessibilityPage />}
       {currentView === 'contact' && <Contact />}
+      {currentView === 'account' && <AccountSettings user={authUser} onDeleted={() => setCurrentView('welcome')} />}
 
       {currentView !== 'videoRoom' && currentView !== 'checkout' && <Footer onNav={setCurrentView} />}
 
