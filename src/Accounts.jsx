@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  ShieldCheck, Mail, Lock, User, LogIn, CheckCircle, Clock, XCircle, Wallet,
+  ShieldCheck, Mail, Lock, User, LogIn, CheckCircle, Clock, XCircle, Wallet, AlertTriangle, Zap,
 } from 'lucide-react';
 import { doc, setDoc, updateDoc, onSnapshot, collection, getDoc } from 'firebase/firestore';
 import { db } from './firebase.js';
@@ -208,6 +208,7 @@ export function ProviderOnboarding({ user, onComplete }) {
 // =========================================================
 export function AdminPanel({ user }) {
   const [providers, setProviders] = useState([]);
+  const [alerts, setAlerts] = useState([]);
   const [busyId, setBusyId] = useState(null);
 
   useEffect(() => {
@@ -217,6 +218,14 @@ export function AdminPanel({ user }) {
     });
     return () => unsub();
   }, []);
+
+  useEffect(() => {
+    if (!db || !isAdminUser(user)) return;
+    const unsub = onSnapshot(collection(db, 'alerts'), (snap) => {
+      setAlerts(snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)));
+    }, () => {});
+    return () => unsub();
+  }, [user]);
 
   if (!isAdminUser(user)) {
     return (
@@ -248,6 +257,28 @@ export function AdminPanel({ user }) {
           <h1 className="text-2xl font-bold">פאנל Trust &amp; Safety</h1>
           <p className="text-gray-500 text-sm">אישור מומחים וניהול הקטלוג</p>
         </div>
+      </div>
+
+      {/* יומן התראות בטיחות */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 mb-8">
+        <h3 className="font-bold text-gray-700 mb-3 flex items-center gap-2"><AlertTriangle className="w-5 h-5 text-red-500" /> התראות בטיחות ({alerts.length})</h3>
+        {alerts.length === 0 ? (
+          <p className="text-gray-400 text-sm">אין התראות בטיחות.</p>
+        ) : (
+          <div className="space-y-2 max-h-64 overflow-y-auto">
+            {alerts.slice(0, 30).map((a) => (
+              <div key={a.id} className={`flex items-center gap-3 rounded-xl px-3 py-2 text-sm border ${a.type === 'distress' ? 'bg-red-50 border-red-200' : 'bg-amber-50 border-amber-200'}`}>
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${a.type === 'distress' ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600'}`}>
+                  {a.type === 'distress' ? <AlertTriangle className="w-4 h-4" /> : <Zap className="w-4 h-4" />}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="font-bold text-gray-800">{a.type === 'distress' ? 'כפתור מצוקה — מטפל' : `מילת מפתח: "${a.keyword}"`}</div>
+                  <div className="text-gray-400 text-xs truncate">{a.note} · חדר {a.sessionId} · {new Date(a.createdAt).toLocaleString('he-IL')}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <h3 className="font-bold text-gray-700 mb-3 flex items-center gap-2"><Clock className="w-5 h-5 text-amber-500" /> ממתינים לאישור ({pending.length})</h3>

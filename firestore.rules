@@ -74,5 +74,12 @@ service cloud.firestore {
       allow create: if signedIn();
       allow delete: if false;
     }
+
+    // התראות Trust & Safety — יצירה למחובר, קריאה/עדכון למנהל בלבד
+    match /alerts/{id} {
+      allow create: if signedIn();
+      allow read, update: if isAdmin();
+      allow delete: if false;
+    }
   }
 }

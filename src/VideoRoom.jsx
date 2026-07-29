@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { doc, onSnapshot, updateDoc, arrayUnion, setDoc } from 'firebase/firestore';
 import { auth, db, appId } from './firebase.js';
 import { useWebRTC } from './lib/webrtc.js';
+import { createAlert, scanMessage } from './lib/safety.js';
 import { 
   ShieldCheck, Video, VideoOff, Mic, MicOff, Clock, 
   PhoneCall, MessageSquare, PenTool, AlertTriangle, Send, 
@@ -264,6 +265,24 @@ export default function VideoRoom({ sessionId, onLeave, isProvider = true, categ
   const wrapUp = secondsLeft <= 300; // 5 דק׳ אחרונות ומטה
   const fmtClock = (s) => { const a = Math.abs(s); const m = Math.floor(a / 60); const ss = a % 60; return `${overtime ? '+' : ''}${String(m).padStart(2, '0')}:${String(ss).padStart(2, '0')}`; };
 
+  // Trust & Safety — כפתור מצוקה שקט (מטפל בלבד) + ניטור מילות מפתח בצ'אט
+  const [distressSent, setDistressSent] = useState(false);
+  const alertedRef = useRef(new Set());
+  const sendDistress = async () => {
+    await createAlert({ type: 'distress', sessionId, providerId: currentUser?.uid || null, category, note: 'כפתור מצוקה הופעל ע"י המטפל' });
+    setDistressSent(true);
+    setTimeout(() => setDistressSent(false), 4000);
+  };
+  useEffect(() => {
+    if (!messages || !messages.length) return;
+    const last = messages[messages.length - 1];
+    const kw = scanMessage(last?.text);
+    if (kw && !alertedRef.current.has(kw)) {
+      alertedRef.current.add(kw);
+      createAlert({ type: 'keyword', sessionId, category, keyword: kw, note: 'מילת מפתח זוהתה בצ׳אט' });
+    }
+  }, [messages]);
+
   // וידאו אמיתי 1-על-1 (WebRTC + סיגנלינג ב-Firestore), חדר לפי sessionId
   const { localStream, remoteStream, status, role, toggleTrack } = useWebRTC({ roomId: sessionId, active: true });
 
@@ -364,11 +383,23 @@ export default function VideoRoom({ sessionId, onLeave, isProvider = true, categ
         </div>
 
         <div className="absolute top-4 right-4 z-30 flex gap-2">
+           {isProvider && (
+             <button onClick={sendDistress} title="כפתור מצוקה שקט — התראה לצוות הבטיחות" aria-label="כפתור מצוקה" className="px-3 py-1.5 rounded-lg text-xs font-bold backdrop-blur-sm border border-red-500/60 bg-red-900/40 text-red-200 hover:bg-red-800/70 flex items-center gap-1.5 transition-colors">
+               <AlertTriangle className="w-4 h-4" /> מצוקה
+             </button>
+           )}
            <div className={`px-3 py-1.5 rounded-lg text-xs font-bold backdrop-blur-sm border flex items-center gap-1.5 ${status === 'connected' ? 'bg-green-900/50 text-green-300 border-green-600' : 'bg-gray-800/80 text-gray-300 border-gray-600'}`}>
              <span className={`w-2 h-2 rounded-full ${status === 'connected' ? 'bg-green-400 animate-pulse' : 'bg-amber-400'}`}></span>
              {status === 'connected' ? 'מחובר' : status === 'no-media' ? 'אין מצלמה' : 'ממתין לחיבור'}
            </div>
         </div>
+
+        {/* אישור שקט — נראה למטפל בלבד */}
+        {distressSent && (
+          <div className="absolute top-16 left-1/2 -translate-x-1/2 z-40 bg-gray-900/90 text-white text-xs px-4 py-2 rounded-full border border-gray-700 shadow-lg">
+            התראת בטיחות נשלחה בשקט לצוות
+          </div>
+        )}
 
         {/* באנר סיכום — נראה רק למטפל. אינו סוגר את החדר; המטפל בוחר מתי לסיים. */}
         {isProvider && wrapUp && (
