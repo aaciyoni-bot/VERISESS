@@ -6,6 +6,7 @@ import { signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 import { collection, onSnapshot, doc, updateDoc, query, where } from 'firebase/firestore';
 import { LoginScreen, ProviderOnboarding, AdminPanel } from './Accounts.jsx';
 import Checkout from './Checkout.jsx';
+import ExpertProfile from './ExpertProfile.jsx';
 import MySessions from './MySessions.jsx';
 import { AvailabilityManager, SlotPicker } from './Scheduling.jsx';
 import Home from './Home.jsx';
@@ -13,7 +14,7 @@ import { Terms, Privacy, AccessibilityPage, Contact, Footer } from './Legal.jsx'
 import AccessibilityWidget from './Accessibility.jsx';
 import NotificationBell from './Notifications.jsx';
 import { logout, isAdminUser } from './lib/auth.js';
-import { providerNet } from './lib/config.js';
+import { providerNet, canSos } from './lib/config.js';
 import {
   ShieldCheck, LogOut, LayoutDashboard, Video, VideoOff, Mic, MicOff, 
   Clock, PhoneCall, MessageSquare, PenTool, AlertTriangle, Send, 
@@ -255,11 +256,6 @@ const Marketplace = ({ onSelectExpert }) => {
     return { val: (arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(1), count: arr.length };
   };
 
-  // SOS רלוונטי רק לקטגוריות שבהן ייתכן צורך במענה דחוף/מצוקה.
-  // חוגים, משחקים (D&D/פוקר) ורוחניות אינם SOS.
-  const SOS_CATEGORIES = ['psychology', 'addiction', 'law', 'sleep', 'finance'];
-  const canSos = (e) => e.isOnline === true && SOS_CATEGORIES.includes(e.category);
-
   const filteredExperts = experts.filter(expert => {
     const matchesCategory = selectedCategory === 'all' || expert.category === selectedCategory;
     const matchesSos = sosOnly ? canSos(expert) : true;
@@ -329,8 +325,8 @@ const Marketplace = ({ onSelectExpert }) => {
                 </div>
                 <div className="mt-5 pt-4 border-t border-gray-100 flex items-center justify-between">
                   <div className="font-bold text-xl text-teal-600">₪{expert.rate}</div>
-                  <button onClick={() => onSelectExpert && onSelectExpert(expert, canSos(expert) ? 'sos' : 'scheduled')} className={`px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 transition-transform active:scale-95 ${canSos(expert) ? 'bg-red-500 hover:bg-red-600 text-white shadow-md shadow-red-500/20' : expert.isOnline ? 'bg-teal-500 hover:bg-teal-600 text-white' : 'bg-blue-50 text-blue-900 hover:bg-blue-100'}`}>
-                    {canSos(expert) ? <><PhoneCall className="w-4 h-4" /> שיחת SOS</> : expert.isOnline ? <><Video className="w-4 h-4" /> התחל שיחה</> : <><Video className="w-4 h-4" /> תאם פגישה</>}
+                  <button onClick={() => onSelectExpert && onSelectExpert(expert)} className={`px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 transition-transform active:scale-95 ${canSos(expert) ? 'bg-red-500 hover:bg-red-600 text-white shadow-md shadow-red-500/20' : expert.isOnline ? 'bg-teal-500 hover:bg-teal-600 text-white' : 'bg-blue-50 text-blue-900 hover:bg-blue-100'}`}>
+                    {canSos(expert) ? <><PhoneCall className="w-4 h-4" /> שיחת SOS</> : expert.isOnline ? <><Video className="w-4 h-4" /> התחל שיחה</> : <><Video className="w-4 h-4" /> צפה והזמן</>}
                   </button>
                 </div>
               </div>
@@ -534,7 +530,8 @@ export default function App() {
 
       {currentView === 'welcome' && <Home onFindExpert={() => setCurrentView('marketplace')} onProviderSignup={() => setCurrentView('onboarding')} />}
 
-      {currentView === 'marketplace' && <Marketplace onSelectExpert={(expert, sessionType) => { setSelectedExpert(expert); setSelectedExpertId(expert?.id); setSelectedSessionType(sessionType || 'scheduled'); setRoomCategory(expert?.category === 'gaming' ? 'gaming' : 'therapy'); setSelectedSlot(null); setCurrentView(sessionType === 'sos' ? 'checkout' : 'slots'); }} />}
+      {currentView === 'marketplace' && <Marketplace onSelectExpert={(expert) => { setSelectedExpert(expert); setSelectedExpertId(expert?.id); setRoomCategory(expert?.category === 'gaming' ? 'gaming' : 'therapy'); setCurrentView('profile'); }} />}
+      {currentView === 'profile' && <ExpertProfile expert={selectedExpert} onBack={() => setCurrentView('marketplace')} onBook={(sessionType) => { setSelectedSessionType(sessionType); setSelectedSlot(null); setCurrentView(sessionType === 'sos' ? 'checkout' : 'slots'); }} />}
       {currentView === 'slots' && <SlotPicker expert={selectedExpert} onPick={(slot) => { setSelectedSlot(slot); setCurrentView('checkout'); }} onCancel={() => setCurrentView('marketplace')} />}
       {currentView === 'login' && <LoginScreen onDone={() => setCurrentView('marketplace')} />}
       {currentView === 'onboarding' && <ProviderOnboarding user={authUser} onComplete={() => setCurrentView('dashboard')} />}
