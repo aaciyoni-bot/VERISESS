@@ -4,12 +4,14 @@ import { collection, query, where, onSnapshot, addDoc, doc, updateDoc } from 'fi
 import { db } from './firebase.js';
 import { googleCalendarUrl } from './lib/notify.js';
 import ChatThread from './ChatThread.jsx';
+import Receipt from './Receipt.jsx';
 
 export default function MySessions({ user, onEnterRoom, onFindExpert }) {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [ratingFor, setRatingFor] = useState(null);
   const [chatWith, setChatWith] = useState(null);
+  const [receiptFor, setReceiptFor] = useState(null);
 
   useEffect(() => {
     if (!user || !db) { setLoading(false); return; }
@@ -60,6 +62,7 @@ export default function MySessions({ user, onEnterRoom, onFindExpert }) {
                     <a href={googleCalendarUrl({ title: `פגישת VeriSess עם ${b.providerName || 'מומחה'}`, startMs: b.slotStart })} target="_blank" rel="noreferrer" className="bg-gray-50 hover:bg-gray-100 text-gray-700 text-sm font-bold px-4 py-2 rounded-lg flex items-center gap-1"><Calendar className="w-4 h-4" /> יומן</a>
                   )}
                   {!b.rated && <button onClick={() => setRatingFor(b)} className="bg-amber-50 hover:bg-amber-100 text-amber-700 text-sm font-bold px-4 py-2 rounded-lg flex items-center gap-1"><Star className="w-4 h-4" /> דרג</button>}
+                  {b.status === 'paid' && <button onClick={() => setReceiptFor(b)} className="bg-gray-50 hover:bg-gray-100 text-gray-700 text-sm font-bold px-4 py-2 rounded-lg">אישור</button>}
                 </div>
                 {b.summary && <div className="w-full bg-teal-50 border border-teal-100 rounded-xl p-3 text-sm text-gray-700"><span className="font-bold text-teal-700">סיכום מהמומחה: </span>{b.summary}</div>}
               </div>
@@ -70,6 +73,7 @@ export default function MySessions({ user, onEnterRoom, onFindExpert }) {
 
       {ratingFor && <RatingModal booking={ratingFor} user={user} onClose={() => setRatingFor(null)} />}
       {chatWith && <ChatThread user={user} otherUid={chatWith.uid} otherName={chatWith.name} onClose={() => setChatWith(null)} />}
+      {receiptFor && <Receipt booking={receiptFor} onClose={() => setReceiptFor(null)} />}
     </div>
   );
 }

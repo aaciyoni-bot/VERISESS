@@ -38,6 +38,14 @@ html.a11y-cursor * {
   cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 24 24'%3E%3Cpath d='M4 2l16 8-7 2-2 7z' fill='black' stroke='white' stroke-width='1'/%3E%3C/svg%3E") 4 4, auto !important;
 }
 
+/* הדפסה — מדפיסים רק את אזור האישור (.print-area) */
+@media print {
+  body * { visibility: hidden !important; }
+  .print-area, .print-area * { visibility: visible !important; }
+  .print-area { position: absolute !important; inset: 0 !important; margin: 0 !important; box-shadow: none !important; max-width: none !important; border-radius: 0 !important; }
+  .no-print { display: none !important; }
+}
+
 /* אנימציית נשימה למצב הרגעה בחדר */
 @keyframes breathe {
   0%, 100% { transform: scale(0.75); opacity: 0.55; }
