@@ -346,7 +346,7 @@ const Marketplace = ({ onSelectExpert }) => {
 
 // AdminPanel ו-ProviderOnboarding מיובאים כרכיבים אמיתיים מ-./Accounts.jsx
 
-const ProviderDashboard = ({ user, onRegister }) => {
+const ProviderDashboard = ({ user, onRegister, onEnterRoom }) => {
   const [profile, setProfile] = useState(undefined); // undefined=טוען, null=אין
   const [bookings, setBookings] = useState([]);
   const [busy, setBusy] = useState(false);
@@ -432,9 +432,10 @@ const ProviderDashboard = ({ user, onRegister }) => {
         {bookings.length === 0 && <p className="text-gray-400 text-sm">עדיין אין פגישות.</p>}
         <div className="space-y-2">
           {bookings.slice(0, 10).map((b) => (
-            <div key={b.id} className="flex justify-between items-center border-b border-gray-50 py-2 text-sm">
-              <span className="text-gray-700">{b.clientEmail || 'לקוח'} · {b.sessionType}</span>
+            <div key={b.id} className="flex justify-between items-center border-b border-gray-50 py-2 text-sm gap-2">
+              <span className="text-gray-700 flex-1 min-w-0 truncate">{b.clientEmail || 'לקוח'} · {b.sessionType}</span>
               <span className="font-bold text-teal-600">₪{b.amount}</span>
+              <button onClick={() => onEnterRoom && onEnterRoom(b)} className="bg-blue-900 hover:bg-blue-800 text-white text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 shrink-0"><Video className="w-3.5 h-3.5" /> לחדר</button>
             </div>
           ))}
         </div>
@@ -480,6 +481,7 @@ export default function App() {
   const [selectedExpert, setSelectedExpert] = useState(null);
   const [selectedSessionType, setSelectedSessionType] = useState('scheduled');
   const [selectedSlot, setSelectedSlot] = useState(null);
+  const [asProvider, setAsProvider] = useState(false);
   const [roomCategory, setRoomCategory] = useState('therapy');
   const [authUser, setAuthUser] = useState(null);
 
@@ -533,12 +535,12 @@ export default function App() {
       {currentView === 'slots' && <SlotPicker expert={selectedExpert} onPick={(slot) => { setSelectedSlot(slot); setCurrentView('checkout'); }} onCancel={() => setCurrentView('marketplace')} />}
       {currentView === 'login' && <LoginScreen onDone={() => setCurrentView('marketplace')} />}
       {currentView === 'onboarding' && <ProviderOnboarding user={authUser} onComplete={() => setCurrentView('dashboard')} />}
-      {currentView === 'dashboard' && <ProviderDashboard user={authUser} onRegister={() => setCurrentView('onboarding')} />}
-      {currentView === 'checkout' && <Checkout expert={selectedExpert} user={authUser} sessionType={selectedSessionType} slot={selectedSlot} onCancel={() => setCurrentView('marketplace')} onSuccess={(sessionId) => { setTestSessionId(sessionId); setCurrentView('videoRoom'); }} />}
-      {currentView === 'mySessions' && <MySessions user={authUser} onFindExpert={() => setCurrentView('marketplace')} onEnterRoom={(b) => { setTestSessionId(b.sessionId || `sess_${b.id}`); setRoomCategory(b.category === 'gaming' ? 'gaming' : 'therapy'); setCurrentView('videoRoom'); }} />}
+      {currentView === 'dashboard' && <ProviderDashboard user={authUser} onRegister={() => setCurrentView('onboarding')} onEnterRoom={(b) => { setTestSessionId(b.sessionId || `sess_${b.id}`); setRoomCategory(b.category === 'gaming' ? 'gaming' : 'therapy'); setAsProvider(true); setCurrentView('videoRoom'); }} />}
+      {currentView === 'checkout' && <Checkout expert={selectedExpert} user={authUser} sessionType={selectedSessionType} slot={selectedSlot} onCancel={() => setCurrentView('marketplace')} onSuccess={(sessionId) => { setTestSessionId(sessionId); setAsProvider(false); setCurrentView('videoRoom'); }} />}
+      {currentView === 'mySessions' && <MySessions user={authUser} onFindExpert={() => setCurrentView('marketplace')} onEnterRoom={(b) => { setTestSessionId(b.sessionId || `sess_${b.id}`); setRoomCategory(b.category === 'gaming' ? 'gaming' : 'therapy'); setAsProvider(false); setCurrentView('videoRoom'); }} />}
       {currentView === 'videoRoom' && (roomCategory === 'group'
         ? <GroupRoom sessionId={testSessionId} onLeave={() => setCurrentView('mySessions')} isHost={false} />
-        : <VideoRoom sessionId={testSessionId} onLeave={() => setCurrentView('mySessions')} isProvider={false} category={roomCategory} />)}
+        : <VideoRoom sessionId={testSessionId} onLeave={() => setCurrentView(asProvider ? 'dashboard' : 'mySessions')} isProvider={asProvider} category={roomCategory} />)}
       {currentView === 'admin' && <AdminPanel user={authUser} />}
       {currentView === 'poker_lobby' && <PokerLobby />}
       {currentView === 'terms' && <Terms />}

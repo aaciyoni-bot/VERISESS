@@ -253,6 +253,17 @@ export default function VideoRoom({ sessionId, onLeave, isProvider = true, categ
   const remoteVideoRef = useRef(null);
   const currentUser = auth?.currentUser;
 
+  // שעון פגישה חי — 45 דק׳. אינו סוגר את החדר בכוח; ממשיך לחריגה עד שהמטפל מסיים.
+  const SESSION_SECONDS = 45 * 60;
+  const [secondsLeft, setSecondsLeft] = useState(SESSION_SECONDS);
+  useEffect(() => {
+    const id = setInterval(() => setSecondsLeft((s) => s - 1), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const overtime = secondsLeft < 0;
+  const wrapUp = secondsLeft <= 300; // 5 דק׳ אחרונות ומטה
+  const fmtClock = (s) => { const a = Math.abs(s); const m = Math.floor(a / 60); const ss = a % 60; return `${overtime ? '+' : ''}${String(m).padStart(2, '0')}:${String(ss).padStart(2, '0')}`; };
+
   // וידאו אמיתי 1-על-1 (WebRTC + סיגנלינג ב-Firestore), חדר לפי sessionId
   const { localStream, remoteStream, status, role, toggleTrack } = useWebRTC({ roomId: sessionId, active: true });
 
@@ -342,8 +353,8 @@ export default function VideoRoom({ sessionId, onLeave, isProvider = true, categ
       {/* אזור הוידאו המרכזי */}
       <div className="flex-1 min-h-[280px] relative bg-black flex items-center justify-center overflow-hidden">
         <div className="absolute top-4 left-4 z-30 flex items-center gap-2">
-          <div className="bg-black/60 text-white px-4 py-2 rounded-lg backdrop-blur-sm flex items-center gap-2 border border-gray-700">
-            <Clock className="w-4 h-4 text-teal-400" /> 44:59
+          <div className={`px-4 py-2 rounded-lg backdrop-blur-sm flex items-center gap-2 border font-bold ${overtime ? 'bg-red-900/60 text-red-200 border-red-500' : wrapUp ? 'bg-amber-900/50 text-amber-200 border-amber-500' : 'bg-black/60 text-white border-gray-700'}`}>
+            <Clock className="w-4 h-4" /> {fmtClock(secondsLeft)}
           </div>
           {category === 'class' && (
             <div className="bg-blue-600/80 text-white px-4 py-2 rounded-lg backdrop-blur-sm flex items-center gap-2 border border-blue-500 font-bold shadow-md">
@@ -358,6 +369,21 @@ export default function VideoRoom({ sessionId, onLeave, isProvider = true, categ
              {status === 'connected' ? 'מחובר' : status === 'no-media' ? 'אין מצלמה' : 'ממתין לחיבור'}
            </div>
         </div>
+
+        {/* באנר סיכום — נראה רק למטפל. אינו סוגר את החדר; המטפל בוחר מתי לסיים. */}
+        {isProvider && wrapUp && (
+          <div className="absolute top-16 left-1/2 -translate-x-1/2 z-40 w-[92%] max-w-md">
+            <div className={`rounded-2xl px-4 py-3 shadow-2xl border text-center text-white ${overtime ? 'bg-red-600 border-red-400' : 'bg-amber-500 border-amber-300'}`}>
+              <div className="font-bold text-sm flex items-center justify-center gap-2">
+                <Clock className="w-4 h-4" />
+                {overtime
+                  ? `הזמן הסתיים (חריגה ${fmtClock(secondsLeft)}) — סכמו והיפרדו בנעימים`
+                  : `הפגישה מסתיימת בעוד ${fmtClock(secondsLeft)} — התחילו לסכם`}
+              </div>
+              <button onClick={handleEndCall} className="mt-2 bg-white/95 hover:bg-white text-gray-900 font-bold text-sm px-5 py-2 rounded-full transition-colors">סיים פגישה בנעימים</button>
+            </div>
+          </div>
+        )}
 
         {renderVideoLayout()}
 
