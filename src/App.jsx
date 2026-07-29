@@ -26,7 +26,7 @@ import {
   Users, UserPlus, Crown, Gamepad2, Dices, Eraser, Trash2, Coins, 
   Eye, EyeOff, CheckCircle, Wallet, DollarSign, ArrowDownCircle, Lock, Activity,
   GraduationCap, HandCoins, X, CheckCircle2, ChevronRight, Search, FileText, Check,
-  Bell, Upload, Camera, CreditCard, ChevronLeft, Filter, Star, Settings, Shield, Trophy, Play, ChevronDown, User, UserCheck, Heart
+  Bell, Upload, Camera, CreditCard, ChevronLeft, Filter, Star, Settings, Shield, Trophy, Play, ChevronDown, User, UserCheck, Heart, Menu
 } from 'lucide-react';
 
 // אתחול Firebase מרוכז ב-./firebase.js (app, auth, db, appId מיובאים למעלה).
@@ -534,6 +534,7 @@ export default function App() {
   const [anonymousMode, setAnonymousMode] = useState(false);
   const [quizCat, setQuizCat] = useState('all');
   const [quizSos, setQuizSos] = useState(false);
+  const [navMenuOpen, setNavMenuOpen] = useState(false);
   const [roomCategory, setRoomCategory] = useState('therapy');
   const [authUser, setAuthUser] = useState(null);
 
@@ -547,37 +548,45 @@ export default function App() {
     return () => unsub();
   }, []); 
 
+  const go = (view) => { setNavMenuOpen(false); setCurrentView(view); };
+  const NavItems = ({ stacked }) => (
+    <>
+      <button onClick={() => { setNavMenuOpen(false); setQuizCat('all'); setQuizSos(false); setCurrentView('marketplace'); }} className={`text-sm font-bold text-teal-600 bg-teal-50 hover:bg-teal-100 px-4 py-2 rounded-lg transition-colors ${stacked ? 'text-right w-full' : ''}`}>חיפוש מומחה</button>
+      {authUser && <button onClick={() => go('mySessions')} className={`text-sm font-bold text-gray-600 hover:text-blue-900 px-3 py-2 ${stacked ? 'text-right w-full' : ''}`}>הפגישות שלי</button>}
+      {authUser && <button onClick={() => go('journal')} className={`text-sm font-bold text-gray-600 hover:text-rose-500 px-3 py-2 ${stacked ? 'text-right w-full' : ''}`}>היומן שלי</button>}
+      {isAdminUser(authUser) && <button onClick={() => go('admin')} className={`text-sm font-bold text-red-600 hover:text-red-700 px-3 py-2 ${stacked ? 'text-right w-full' : ''}`}>אדמין</button>}
+      {authUser && !authUser.isAnonymous ? (
+        <>
+          <button onClick={() => go('account')} className={`text-sm text-gray-600 hover:text-blue-900 px-3 py-2 ${stacked ? 'text-right w-full' : ''}`}>{authUser.displayName || authUser.email}</button>
+          <button onClick={() => { setNavMenuOpen(false); logout(); setCurrentView('welcome'); }} className={`text-sm font-bold text-gray-500 hover:text-red-500 px-3 py-2 ${stacked ? 'text-right w-full' : ''}`}>יציאה</button>
+        </>
+      ) : (
+        <button onClick={() => go('login')} className={`text-sm font-bold text-white bg-blue-900 hover:bg-blue-800 px-4 py-2 rounded-lg transition-colors ${stacked ? 'text-center w-full' : ''}`}>כניסה / הרשמה</button>
+      )}
+    </>
+  );
+
   const GlobalNavbar = () => (
-    <nav className="bg-white border-b border-gray-200 shadow-sm px-6 py-4 flex justify-between items-center sticky top-0 z-40" dir="rtl">
-      <div className="flex items-center gap-2 cursor-pointer" onClick={() => setCurrentView('welcome')}>
+    <nav className="bg-white border-b border-gray-200 shadow-sm px-4 md:px-6 py-4 flex justify-between items-center sticky top-0 z-40 relative" dir="rtl">
+      <div className="flex items-center gap-2 cursor-pointer" onClick={() => go('welcome')}>
         <ShieldCheck className="w-8 h-8 text-blue-900" />
         <span className="text-2xl font-bold text-blue-900">Veri<span className="text-teal-500">Sess</span></span>
       </div>
-      <div className="flex items-center gap-3">
-        <button onClick={() => { setQuizCat('all'); setQuizSos(false); setCurrentView('marketplace'); }} className="text-sm font-bold text-teal-600 bg-teal-50 hover:bg-teal-100 px-4 py-2 rounded-lg transition-colors">
-          חיפוש מומחה
-        </button>
-        {authUser && (
-          <button onClick={() => setCurrentView('mySessions')} className="text-sm font-bold text-gray-600 hover:text-blue-900 px-3 py-2">הפגישות שלי</button>
-        )}
-        {authUser && (
-          <button onClick={() => setCurrentView('journal')} className="text-sm font-bold text-gray-600 hover:text-rose-500 px-3 py-2 hidden md:block">היומן שלי</button>
-        )}
+      <div className="flex items-center gap-2 md:gap-3">
         <NotificationBell user={authUser} onNavigate={setCurrentView} />
-        {isAdminUser(authUser) && (
-          <button onClick={() => setCurrentView('admin')} className="text-sm font-bold text-red-600 hover:text-red-700 px-3 py-2">אדמין</button>
-        )}
-        {authUser && !authUser.isAnonymous ? (
-          <div className="flex items-center gap-2">
-            <button onClick={() => setCurrentView('account')} className="text-sm text-gray-600 hover:text-blue-900 hidden sm:block" title="הגדרות חשבון">{authUser.displayName || authUser.email}</button>
-            <button onClick={() => { logout(); setCurrentView('welcome'); }} className="text-sm font-bold text-gray-500 hover:text-red-500 px-3 py-2">יציאה</button>
-          </div>
-        ) : (
-          <button onClick={() => setCurrentView('login')} className="text-sm font-bold text-white bg-blue-900 hover:bg-blue-800 px-4 py-2 rounded-lg transition-colors">
-            כניסה / הרשמה
-          </button>
-        )}
+        {/* דסקטופ — פריטים בשורה */}
+        <div className="hidden md:flex items-center gap-3"><NavItems /></div>
+        {/* מובייל — כפתור המבורגר */}
+        <button onClick={() => setNavMenuOpen((o) => !o)} aria-label="תפריט" className="md:hidden p-2 text-gray-700 hover:text-blue-900">
+          {navMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+        </button>
       </div>
+      {/* מובייל — תפריט נפתח */}
+      {navMenuOpen && (
+        <div className="md:hidden absolute top-full right-0 left-0 bg-white border-b border-gray-200 shadow-lg flex flex-col p-3 gap-1 z-40">
+          <NavItems stacked />
+        </div>
+      )}
     </nav>
   );
 
