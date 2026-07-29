@@ -1,18 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { ShieldCheck, Star, Clock, PhoneCall, Video, ChevronRight, MessageSquare, EyeOff, X, Lock } from 'lucide-react';
+import { ShieldCheck, Star, Clock, PhoneCall, Video, ChevronRight, MessageSquare, EyeOff, X, Lock, Heart } from 'lucide-react';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from './firebase.js';
 import { canSos, canAnon } from './lib/config.js';
+import { subscribeFavorites, toggleFavorite } from './lib/favorites.js';
 
 const CATEGORY_NAMES = {
   psychology: 'פסיכולוגיה', law: 'משפט ועריכת דין', sleep: 'ייעוץ שינה והורות',
   addiction: 'גמילה', finance: 'ייעוץ פיננסי', gaming: 'חוגי משחק', mysticism: 'רוחניות ותקשור',
 };
 
-export default function ExpertProfile({ expert, onBook, onBack }) {
+export default function ExpertProfile({ expert, user, onBook, onBack }) {
   const [reviews, setReviews] = useState([]);
   const [anon, setAnon] = useState(false);
   const [showAnonInfo, setShowAnonInfo] = useState(false);
+  const [favIds, setFavIds] = useState([]);
+
+  useEffect(() => subscribeFavorites(user?.uid, setFavIds), [user]);
+  const isFav = expert ? favIds.includes(expert.id) : false;
 
   useEffect(() => {
     if (!expert?.id || !db) return;
@@ -36,6 +41,11 @@ export default function ExpertProfile({ expert, onBook, onBack }) {
         <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="bg-blue-900 h-24 relative">
             {expert.isOnline && <span className="absolute top-4 left-4 bg-green-500 text-white text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1.5"><span className="w-2 h-2 bg-white rounded-full animate-pulse" /> זמין עכשיו</span>}
+            {user && (
+              <button onClick={() => toggleFavorite(user.uid, expert.id, isFav)} aria-label={isFav ? 'הסר ממועדפים' : 'הוסף למועדפים'} className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center backdrop-blur-sm transition-colors">
+                <Heart className={`w-5 h-5 ${isFav ? 'fill-rose-400 text-rose-400' : 'text-white'}`} />
+              </button>
+            )}
           </div>
           <div className="px-6 md:px-8 pb-8 -mt-12">
             <div className="w-24 h-24 bg-blue-100 text-blue-700 rounded-2xl border-4 border-white flex items-center justify-center text-4xl font-bold shadow-sm">{(expert.displayName || '?').charAt(0)}</div>

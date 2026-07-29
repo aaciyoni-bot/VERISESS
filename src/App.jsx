@@ -17,13 +17,14 @@ import EmergencyResources from './EmergencyResources.jsx';
 import NotificationBell from './Notifications.jsx';
 import { logout, isAdminUser } from './lib/auth.js';
 import { providerNet, canSos } from './lib/config.js';
+import { subscribeFavorites, toggleFavorite } from './lib/favorites.js';
 import {
   ShieldCheck, LogOut, LayoutDashboard, Video, VideoOff, Mic, MicOff, 
   Clock, PhoneCall, MessageSquare, PenTool, AlertTriangle, Send, 
   Users, UserPlus, Crown, Gamepad2, Dices, Eraser, Trash2, Coins, 
   Eye, EyeOff, CheckCircle, Wallet, DollarSign, ArrowDownCircle, Lock, Activity,
   GraduationCap, HandCoins, X, CheckCircle2, ChevronRight, Search, FileText, Check,
-  Bell, Upload, Camera, CreditCard, ChevronLeft, Filter, Star, Settings, Shield, Trophy, Play, ChevronDown, User, UserCheck
+  Bell, Upload, Camera, CreditCard, ChevronLeft, Filter, Star, Settings, Shield, Trophy, Play, ChevronDown, User, UserCheck, Heart
 } from 'lucide-react';
 
 // אתחול Firebase מרוכז ב-./firebase.js (app, auth, db, appId מיובאים למעלה).
@@ -209,7 +210,10 @@ const PokerWidget = ({ isHost, mode = 'real' }) => {
 // 3. מסכים פנימיים
 // ==========================================
 
-const Marketplace = ({ onSelectExpert }) => {
+const Marketplace = ({ onSelectExpert, user }) => {
+  const [favIds, setFavIds] = useState([]);
+  const [favOnly, setFavOnly] = useState(false);
+  useEffect(() => subscribeFavorites(user?.uid, setFavIds), [user]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [sosOnly, setSosOnly] = useState(false);
@@ -261,7 +265,8 @@ const Marketplace = ({ onSelectExpert }) => {
   const filteredExperts = experts.filter(expert => {
     const matchesCategory = selectedCategory === 'all' || expert.category === selectedCategory;
     const matchesSos = sosOnly ? canSos(expert) : true;
-    return matchesCategory && matchesSos;
+    const matchesFav = favOnly ? favIds.includes(expert.id) : true;
+    return matchesCategory && matchesSos && matchesFav;
   });
 
   return (
@@ -293,6 +298,18 @@ const Marketplace = ({ onSelectExpert }) => {
                 </div>
               </label>
             </div>
+            {user && (
+              <div className="mb-6 bg-rose-50 p-4 rounded-xl border border-rose-100">
+                <label className="flex items-center justify-between cursor-pointer">
+                  <div><span className="block font-bold text-rose-700 text-sm">המועדפים שלי</span><span className="text-xs text-rose-500">מטפלים ששמרת</span></div>
+                  <div className="relative">
+                    <input type="checkbox" className="sr-only" checked={favOnly} onChange={() => setFavOnly(!favOnly)} />
+                    <div className={`block w-10 h-6 rounded-full transition-colors ${favOnly ? 'bg-rose-500' : 'bg-gray-300'}`}></div>
+                    <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${favOnly ? 'transform translate-x-4' : ''}`}></div>
+                  </div>
+                </label>
+              </div>
+            )}
             <h4 className="font-bold text-gray-700 text-sm mb-3">קטגוריות</h4>
             <div className="space-y-2">
               {categories.map(cat => (
@@ -313,6 +330,11 @@ const Marketplace = ({ onSelectExpert }) => {
                   <div className="absolute top-4 left-4 flex items-center gap-1.5 bg-green-50 text-green-700 px-2.5 py-1 rounded-full text-xs font-bold border border-green-200">
                     <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>זמין עכשיו
                   </div>
+                )}
+                {user && (
+                  <button onClick={(e) => { e.stopPropagation(); toggleFavorite(user.uid, expert.id, favIds.includes(expert.id)); }} aria-label="מועדף" className="absolute top-3 right-3 z-10 p-1.5 rounded-full hover:bg-gray-100">
+                    <Heart className={`w-5 h-5 ${favIds.includes(expert.id) ? 'fill-rose-500 text-rose-500' : 'text-gray-300'}`} />
+                  </button>
                 )}
                 <div className="flex gap-4">
                   <div className="w-20 h-20 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center text-3xl font-bold border border-gray-100">{expert.displayName.charAt(0)}</div>
@@ -544,8 +566,8 @@ export default function App() {
 
       {currentView === 'welcome' && <Home onFindExpert={() => setCurrentView('marketplace')} onProviderSignup={() => setCurrentView('onboarding')} />}
 
-      {currentView === 'marketplace' && <Marketplace onSelectExpert={(expert) => { setSelectedExpert(expert); setSelectedExpertId(expert?.id); setRoomCategory(expert?.category === 'gaming' ? 'gaming' : 'therapy'); setCurrentView('profile'); }} />}
-      {currentView === 'profile' && <ExpertProfile expert={selectedExpert} onBack={() => setCurrentView('marketplace')} onBook={(sessionType, anon) => { setSelectedSessionType(sessionType); setAnonymousMode(!!anon); setSelectedSlot(null); setCurrentView(sessionType === 'sos' ? 'checkout' : 'slots'); }} />}
+      {currentView === 'marketplace' && <Marketplace user={authUser} onSelectExpert={(expert) => { setSelectedExpert(expert); setSelectedExpertId(expert?.id); setRoomCategory(expert?.category === 'gaming' ? 'gaming' : 'therapy'); setCurrentView('profile'); }} />}
+      {currentView === 'profile' && <ExpertProfile expert={selectedExpert} user={authUser} onBack={() => setCurrentView('marketplace')} onBook={(sessionType, anon) => { setSelectedSessionType(sessionType); setAnonymousMode(!!anon); setSelectedSlot(null); setCurrentView(sessionType === 'sos' ? 'checkout' : 'slots'); }} />}
       {currentView === 'slots' && <SlotPicker expert={selectedExpert} onPick={(slot) => { setSelectedSlot(slot); setCurrentView('checkout'); }} onCancel={() => setCurrentView('marketplace')} />}
       {currentView === 'login' && <LoginScreen onDone={() => setCurrentView('marketplace')} />}
       {currentView === 'onboarding' && <ProviderOnboarding user={authUser} onComplete={() => setCurrentView('dashboard')} />}
