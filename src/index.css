@@ -38,6 +38,13 @@ html.a11y-cursor * {
   cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 24 24'%3E%3Cpath d='M4 2l16 8-7 2-2 7z' fill='black' stroke='white' stroke-width='1'/%3E%3C/svg%3E") 4 4, auto !important;
 }
 
+/* אנימציית נשימה למצב הרגעה בחדר */
+@keyframes breathe {
+  0%, 100% { transform: scale(0.75); opacity: 0.55; }
+  50% { transform: scale(1.25); opacity: 1; }
+}
+.animate-breathe { animation: breathe 8s ease-in-out infinite; }
+
 /* פוקוס נראה לניווט מקלדת (נגישות) */
 :focus-visible {
   outline: 3px solid #14b8a6;

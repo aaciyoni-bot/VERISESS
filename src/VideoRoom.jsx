@@ -7,7 +7,7 @@ import {
   ShieldCheck, Video, VideoOff, Mic, MicOff, Clock, 
   PhoneCall, MessageSquare, PenTool, AlertTriangle, Send, 
   Users, UserPlus, Gamepad2, Dices, GraduationCap, X,
-  Coins, Eye, EyeOff, Crown, HandCoins, DollarSign, Eraser, Trash2
+  Coins, Eye, EyeOff, Crown, HandCoins, DollarSign, Eraser, Trash2, Heart
 } from 'lucide-react';
 
 // Firebase מיובא מ-./firebase.js (auth, db, appId)
@@ -265,6 +265,9 @@ export default function VideoRoom({ sessionId, onLeave, isProvider = true, categ
   const wrapUp = secondsLeft <= 300; // 5 דק׳ אחרונות ומטה
   const fmtClock = (s) => { const a = Math.abs(s); const m = Math.floor(a / 60); const ss = a % 60; return `${overtime ? '+' : ''}${String(m).padStart(2, '0')}:${String(ss).padStart(2, '0')}`; };
 
+  // מצב הרגעה ("אור אדום") — רקע נעים + נשימה מודרכת לרגעים קשים
+  const [calming, setCalming] = useState(false);
+
   // Trust & Safety — כפתור מצוקה שקט (מטפל בלבד) + ניטור מילות מפתח בצ'אט
   const [distressSent, setDistressSent] = useState(false);
   const alertedRef = useRef(new Set());
@@ -422,6 +425,7 @@ export default function VideoRoom({ sessionId, onLeave, isProvider = true, categ
         <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-gray-900/90 backdrop-blur-md px-8 py-3 rounded-full flex gap-4 z-30 border border-gray-700 shadow-2xl">
           <button onClick={() => toggleMedia('audio')} className={`p-4 rounded-full transition-colors ${micEnabled ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-red-500/20 text-red-500'}`}><Mic className="w-5 h-5" /></button>
           <button onClick={() => toggleMedia('video')} className={`p-4 rounded-full transition-colors ${cameraEnabled ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-red-500/20 text-red-500'}`}><Video className="w-5 h-5" /></button>
+          <button onClick={() => setCalming(true)} title="רגע להירגע — נשימה מודרכת" className="p-4 rounded-full bg-gray-700 hover:bg-gray-600 text-teal-300 transition-colors"><Heart className="w-5 h-5" /></button>
           <div className="w-px h-8 bg-gray-700 mx-2 self-center"></div>
           <button onClick={handleEndCall} className="p-4 bg-red-600 hover:bg-red-700 rounded-full text-white font-bold px-6 flex items-center gap-2 shadow-lg transition-transform active:scale-95"><PhoneCall className="w-5 h-5 transform rotate-[135deg]" /> עזוב חדר</button>
         </div>
@@ -504,6 +508,18 @@ export default function VideoRoom({ sessionId, onLeave, isProvider = true, categ
 
         </div>
       </div>
+
+      {/* מצב הרגעה — "אור אדום" */}
+      {calming && (
+        <div dir="rtl" className="absolute inset-0 z-[70] bg-gradient-to-b from-indigo-900 via-slate-900 to-black flex flex-col items-center justify-center overflow-hidden">
+          <div className="w-40 h-40 rounded-full bg-teal-400/20 animate-breathe flex items-center justify-center">
+            <div className="w-24 h-24 rounded-full bg-teal-400/40" />
+          </div>
+          <p className="text-white/90 mt-12 text-xl font-bold">שאיפה… החזקה… נשיפה…</p>
+          <p className="text-white/50 text-sm mt-2 max-w-xs text-center px-6">קח כמה נשימות עמוקות. אתה במקום בטוח, ויש לך זמן.</p>
+          <button onClick={() => setCalming(false)} className="mt-12 bg-white/10 hover:bg-white/20 text-white px-8 py-3 rounded-full border border-white/20 transition-colors">חזרה לשיחה</button>
+        </div>
+      )}
     </div>
   );
 }

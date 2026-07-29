@@ -58,6 +58,7 @@ export default function MySessions({ user, onEnterRoom, onFindExpert }) {
                   )}
                   {!b.rated && <button onClick={() => setRatingFor(b)} className="bg-amber-50 hover:bg-amber-100 text-amber-700 text-sm font-bold px-4 py-2 rounded-lg flex items-center gap-1"><Star className="w-4 h-4" /> דרג</button>}
                 </div>
+                {b.summary && <div className="w-full bg-teal-50 border border-teal-100 rounded-xl p-3 text-sm text-gray-700"><span className="font-bold text-teal-700">סיכום מהמומחה: </span>{b.summary}</div>}
               </div>
             ))}
           </div>

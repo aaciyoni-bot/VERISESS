@@ -61,6 +61,17 @@ service cloud.firestore {
       allow read, write: if signedIn();
     }
 
+    // יומן רגשי — פרטי לחלוטין לבעלים בלבד
+    match /journals/{id} {
+      allow read, update, delete: if signedIn() && resource.data.uid == request.auth.uid;
+      allow create: if signedIn() && request.resource.data.uid == request.auth.uid;
+    }
+
+    // מועדפים — דוק אחד לכל משתמש
+    match /favorites/{uid} {
+      allow read, write: if isOwner(uid);
+    }
+
     // ביקורות ודירוגים — קריאה ציבורית, יצירה למשתמש מחובר, ללא עריכה/מחיקה
     match /reviews/{id} {
       allow read: if true;

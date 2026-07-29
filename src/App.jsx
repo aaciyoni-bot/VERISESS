@@ -8,10 +8,12 @@ import { LoginScreen, ProviderOnboarding, AdminPanel, AccountSettings } from './
 import Checkout from './Checkout.jsx';
 import ExpertProfile from './ExpertProfile.jsx';
 import MySessions from './MySessions.jsx';
+import MoodJournal from './MoodJournal.jsx';
 import { AvailabilityManager, SlotPicker } from './Scheduling.jsx';
 import Home from './Home.jsx';
 import { Terms, Privacy, AccessibilityPage, Contact, Footer } from './Legal.jsx';
 import AccessibilityWidget from './Accessibility.jsx';
+import EmergencyResources from './EmergencyResources.jsx';
 import NotificationBell from './Notifications.jsx';
 import { logout, isAdminUser } from './lib/auth.js';
 import { providerNet, canSos } from './lib/config.js';
@@ -365,6 +367,13 @@ const ProviderDashboard = ({ user, onRegister, onEnterRoom }) => {
     setBusy(false);
   };
 
+  const summarize = async (b) => {
+    const text = window.prompt('סיכום הפגישה (ייחשף ללקוח):', b.summary || '');
+    if (text === null) return;
+    try { await updateDoc(doc(db, 'bookings', b.id), { summary: text.trim(), summaryAt: Date.now() }); }
+    catch (e) { alert('שמירת הסיכום נכשלה: ' + (e?.code || e?.message)); }
+  };
+
   const paid = bookings.filter((b) => b.status === 'paid');
   const gross = paid.reduce((s, b) => s + (Number(b.amount) || 0), 0);
   const net = providerNet(gross); // 85% למטפל (עמלת פלטפורמה 15%)
@@ -433,6 +442,7 @@ const ProviderDashboard = ({ user, onRegister, onEnterRoom }) => {
             <div key={b.id} className="flex justify-between items-center border-b border-gray-50 py-2 text-sm gap-2">
               <span className="text-gray-700 flex-1 min-w-0 truncate">{b.anonymous ? '🕶️ לקוח אנונימי' : (b.clientDisplay || b.clientEmail || 'לקוח')} · {b.sessionType}</span>
               <span className="font-bold text-teal-600">₪{b.amount}</span>
+              <button onClick={() => summarize(b)} className="text-xs font-bold text-gray-500 hover:text-teal-600 px-2 shrink-0" title="סיכום פגישה">סכם</button>
               <button onClick={() => onEnterRoom && onEnterRoom(b)} className="bg-blue-900 hover:bg-blue-800 text-white text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 shrink-0"><Video className="w-3.5 h-3.5" /> לחדר</button>
             </div>
           ))}
@@ -507,6 +517,9 @@ export default function App() {
         {authUser && (
           <button onClick={() => setCurrentView('mySessions')} className="text-sm font-bold text-gray-600 hover:text-blue-900 px-3 py-2">הפגישות שלי</button>
         )}
+        {authUser && (
+          <button onClick={() => setCurrentView('journal')} className="text-sm font-bold text-gray-600 hover:text-rose-500 px-3 py-2 hidden md:block">היומן שלי</button>
+        )}
         <NotificationBell user={authUser} onNavigate={setCurrentView} />
         {isAdminUser(authUser) && (
           <button onClick={() => setCurrentView('admin')} className="text-sm font-bold text-red-600 hover:text-red-700 px-3 py-2">אדמין</button>
@@ -549,11 +562,14 @@ export default function App() {
       {currentView === 'accessibility' && <AccessibilityPage />}
       {currentView === 'contact' && <Contact />}
       {currentView === 'account' && <AccountSettings user={authUser} onDeleted={() => setCurrentView('welcome')} />}
+      {currentView === 'journal' && <MoodJournal user={authUser} />}
 
       {currentView !== 'videoRoom' && currentView !== 'checkout' && <Footer onNav={setCurrentView} />}
 
       {/* סרגל נגישות — בכל דף (ת"י 5568) */}
       <AccessibilityWidget onStatement={() => setCurrentView('accessibility')} />
+      {/* כפתור עזרה מיידית / מוקדי חירום */}
+      <EmergencyResources />
     </div>
   );
 }
