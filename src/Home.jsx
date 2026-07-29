@@ -22,7 +22,7 @@ const STEPS = [
   { icon: Video, title: 'נכנסים לשיחה', text: 'וידאו מוצפן מקצה לקצה, ישירות בדפדפן. בלי הורדות, בלי טרחה.' },
 ];
 
-export default function Home({ onFindExpert, onProviderSignup }) {
+export default function Home({ onFindExpert, onProviderSignup, onQuiz }) {
   return (
     <div dir="rtl" className="bg-white">
       {/* Hero */}
@@ -47,6 +47,11 @@ export default function Home({ onFindExpert, onProviderSignup }) {
               אני מומחה — הצטרפות
             </button>
           </div>
+          {onQuiz && (
+            <button onClick={onQuiz} className="mt-6 text-teal-200 hover:text-white text-sm font-bold underline underline-offset-4">
+              לא בטוח מי מתאים לך? ענה על 2 שאלות ונמליץ →
+            </button>
+          )}
           <div className="flex flex-wrap justify-center gap-x-8 gap-y-3 mt-12 text-sm text-blue-200">
             <span className="flex items-center gap-2"><ShieldCheck className="w-4 h-4 text-teal-400" /> אימות זהות למומחים</span>
             <span className="flex items-center gap-2"><Zap className="w-4 h-4 text-teal-400" /> זמינות SOS 24/7</span>

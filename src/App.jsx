@@ -7,6 +7,7 @@ import { collection, onSnapshot, doc, updateDoc, query, where } from 'firebase/f
 import { LoginScreen, ProviderOnboarding, AdminPanel, AccountSettings } from './Accounts.jsx';
 import Checkout from './Checkout.jsx';
 import ExpertProfile from './ExpertProfile.jsx';
+import IntakeQuiz from './IntakeQuiz.jsx';
 import MySessions from './MySessions.jsx';
 import MoodJournal from './MoodJournal.jsx';
 import { AvailabilityManager, SlotPicker } from './Scheduling.jsx';
@@ -210,14 +211,14 @@ const PokerWidget = ({ isHost, mode = 'real' }) => {
 // 3. מסכים פנימיים
 // ==========================================
 
-const Marketplace = ({ onSelectExpert, user }) => {
+const Marketplace = ({ onSelectExpert, user, initialCategory = 'all', initialSos = false }) => {
   const [favIds, setFavIds] = useState([]);
   const [favOnly, setFavOnly] = useState(false);
   const [videoOnly, setVideoOnly] = useState(false);
   useEffect(() => subscribeFavorites(user?.uid, setFavIds), [user]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [sosOnly, setSosOnly] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState(initialCategory || 'all');
+  const [sosOnly, setSosOnly] = useState(!!initialSos);
 
   const categories = [
     { id: 'all', name: 'הכל' },
@@ -523,6 +524,8 @@ export default function App() {
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [asProvider, setAsProvider] = useState(false);
   const [anonymousMode, setAnonymousMode] = useState(false);
+  const [quizCat, setQuizCat] = useState('all');
+  const [quizSos, setQuizSos] = useState(false);
   const [roomCategory, setRoomCategory] = useState('therapy');
   const [authUser, setAuthUser] = useState(null);
 
@@ -543,7 +546,7 @@ export default function App() {
         <span className="text-2xl font-bold text-blue-900">Veri<span className="text-teal-500">Sess</span></span>
       </div>
       <div className="flex items-center gap-3">
-        <button onClick={() => setCurrentView('marketplace')} className="text-sm font-bold text-teal-600 bg-teal-50 hover:bg-teal-100 px-4 py-2 rounded-lg transition-colors">
+        <button onClick={() => { setQuizCat('all'); setQuizSos(false); setCurrentView('marketplace'); }} className="text-sm font-bold text-teal-600 bg-teal-50 hover:bg-teal-100 px-4 py-2 rounded-lg transition-colors">
           חיפוש מומחה
         </button>
         {authUser && (
@@ -574,9 +577,10 @@ export default function App() {
     <div className="min-h-screen bg-gray-50 font-sans flex flex-col">
       {currentView !== 'videoRoom' && <GlobalNavbar />}
 
-      {currentView === 'welcome' && <Home onFindExpert={() => setCurrentView('marketplace')} onProviderSignup={() => setCurrentView('onboarding')} />}
+      {currentView === 'welcome' && <Home onFindExpert={() => { setQuizCat('all'); setQuizSos(false); setCurrentView('marketplace'); }} onProviderSignup={() => setCurrentView('onboarding')} onQuiz={() => setCurrentView('quiz')} />}
 
-      {currentView === 'marketplace' && <Marketplace user={authUser} onSelectExpert={(expert) => { setSelectedExpert(expert); setSelectedExpertId(expert?.id); setRoomCategory(expert?.category === 'gaming' ? 'gaming' : 'therapy'); setCurrentView('profile'); }} />}
+      {currentView === 'quiz' && <IntakeQuiz onDone={(cat, sosNow) => { setQuizCat(cat || 'all'); setQuizSos(!!sosNow); setCurrentView('marketplace'); }} onCancel={() => { setQuizCat('all'); setQuizSos(false); setCurrentView('marketplace'); }} />}
+      {currentView === 'marketplace' && <Marketplace user={authUser} initialCategory={quizCat} initialSos={quizSos} onSelectExpert={(expert) => { setSelectedExpert(expert); setSelectedExpertId(expert?.id); setRoomCategory(expert?.category === 'gaming' ? 'gaming' : 'therapy'); setCurrentView('profile'); }} />}
       {currentView === 'profile' && <ExpertProfile expert={selectedExpert} user={authUser} onBack={() => setCurrentView('marketplace')} onBook={(sessionType, anon) => { setSelectedSessionType(sessionType); setAnonymousMode(!!anon); setSelectedSlot(null); setCurrentView(sessionType === 'sos' ? 'checkout' : 'slots'); }} />}
       {currentView === 'slots' && <SlotPicker expert={selectedExpert} onPick={(slot) => { setSelectedSlot(slot); setCurrentView('checkout'); }} onCancel={() => setCurrentView('marketplace')} />}
       {currentView === 'login' && <LoginScreen onDone={() => setCurrentView('marketplace')} />}
