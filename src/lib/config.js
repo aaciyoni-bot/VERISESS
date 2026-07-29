@@ -8,6 +8,12 @@
 export const TRANZILA_SUPPLIER = import.meta.env.VITE_TRANZILA_SUPPLIER || '';
 export const TRANZILA_CONFIGURED = Boolean(TRANZILA_SUPPLIER);
 
+// עמלת הפלטפורמה — הנתח שנשאר אצל VeriSess מכל פגישה.
+// המטפל מקבל את היתרה (1 - PLATFORM_FEE). ניתן לשנות במקום אחד.
+export const PLATFORM_FEE = 0.15; // 15%
+export const providerNet = (gross) => Math.round((Number(gross) || 0) * (1 - PLATFORM_FEE));
+export const platformCut = (gross) => Math.round((Number(gross) || 0) * PLATFORM_FEE);
+
 // בונה את כתובת דף הסליקה המתארח של טרנזילה (iframe).
 export function buildTranzilaUrl({ sum, description, email, contact, returnUrl }) {
   const params = new URLSearchParams({

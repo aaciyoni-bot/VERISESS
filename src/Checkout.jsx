@@ -3,6 +3,7 @@ import { ShieldCheck, Lock, CreditCard, Check, AlertTriangle } from 'lucide-reac
 import { collection, addDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from './firebase.js';
 import { TRANZILA_CONFIGURED, buildTranzilaUrl } from './lib/config.js';
+import { createNotification } from './lib/notify.js';
 
 // =========================================================
 // צ'קאאוט אמיתי — סליקת טרנזילה (דף מתארח ב-iframe)
@@ -66,6 +67,16 @@ export default function Checkout({ expert, user, sessionType = 'scheduled', slot
     if (slot?.id && expert?.id) {
       try { await updateDoc(doc(db, 'providers', expert.id, 'availability', slot.id), { booked: true, bookingId: ref.id }); }
       catch (e) { console.error('[VeriSess] סימון מועד נכשל:', e); }
+    }
+    // התראה למטפל
+    if (expert?.id) {
+      await createNotification({
+        uid: expert.id,
+        type: isSos ? 'sos' : 'booking',
+        title: isSos ? 'לקוח ממתין ב-SOS 🔴' : 'פגישה חדשה נקבעה',
+        body: `${user?.email || 'לקוח'} · ₪${amount}${slot ? ' · ' + new Date(slot.start).toLocaleString('he-IL', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : ''}`,
+        link: 'dashboard',
+      });
     }
     return sessionId;
   }

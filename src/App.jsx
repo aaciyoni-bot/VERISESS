@@ -11,7 +11,9 @@ import { AvailabilityManager, SlotPicker } from './Scheduling.jsx';
 import Home from './Home.jsx';
 import { Terms, Privacy, AccessibilityPage, Contact, Footer } from './Legal.jsx';
 import AccessibilityWidget from './Accessibility.jsx';
+import NotificationBell from './Notifications.jsx';
 import { logout, isAdminUser } from './lib/auth.js';
+import { providerNet } from './lib/config.js';
 import {
   ShieldCheck, LogOut, LayoutDashboard, Video, VideoOff, Mic, MicOff, 
   Clock, PhoneCall, MessageSquare, PenTool, AlertTriangle, Send, 
@@ -369,7 +371,7 @@ const ProviderDashboard = ({ user, onRegister, onEnterRoom }) => {
 
   const paid = bookings.filter((b) => b.status === 'paid');
   const gross = paid.reduce((s, b) => s + (Number(b.amount) || 0), 0);
-  const net = Math.round(gross * 0.8); // אחרי עמלת פלטפורמה 20%
+  const net = providerNet(gross); // 85% למטפל (עמלת פלטפורמה 15%)
 
   const Wrap = ({ children }) => (
     <div className="min-h-screen bg-gray-50 font-sans pb-12" dir="rtl">
@@ -508,6 +510,7 @@ export default function App() {
         {authUser && (
           <button onClick={() => setCurrentView('mySessions')} className="text-sm font-bold text-gray-600 hover:text-blue-900 px-3 py-2">הפגישות שלי</button>
         )}
+        <NotificationBell user={authUser} onNavigate={setCurrentView} />
         {isAdminUser(authUser) && (
           <button onClick={() => setCurrentView('admin')} className="text-sm font-bold text-red-600 hover:text-red-700 px-3 py-2">אדמין</button>
         )}
