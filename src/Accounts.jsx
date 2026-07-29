@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  ShieldCheck, Mail, Lock, User, LogIn, CheckCircle, Clock, XCircle, Wallet, AlertTriangle, Zap,
+  ShieldCheck, Mail, Lock, User, LogIn, CheckCircle, Clock, XCircle, Wallet, AlertTriangle, Zap, Star,
 } from 'lucide-react';
 import { doc, setDoc, updateDoc, onSnapshot, collection, getDoc, deleteDoc } from 'firebase/firestore';
 import { db } from './firebase.js';
@@ -268,6 +268,19 @@ export function AdminPanel({ user }) {
     finally { setBusyId(null); }
   };
 
+  // עריכת דירוג ומספר מדרגים ידנית — למנהל בלבד (רק מהמייל שלך)
+  const editRating = async (p) => {
+    const r = window.prompt(`דירוג ל-${p.displayName} (0–5):`, p.manualRating != null ? p.manualRating : (p.rating || ''));
+    if (r === null) return;
+    const rating = Number(r);
+    if (!(rating >= 0 && rating <= 5)) { alert('הזן דירוג בין 0 ל-5'); return; }
+    const c = window.prompt('מספר מדרגים:', p.manualReviewCount != null ? p.manualReviewCount : '');
+    if (c === null) return;
+    const count = Math.max(0, Math.round(Number(c) || 0));
+    try { await updateDoc(doc(db, 'providers', p.id), { manualRating: rating, manualReviewCount: count }); }
+    catch (e) { alert('שמירה נכשלה: ' + (e?.code || e?.message)); }
+  };
+
   const pending = providers.filter((p) => p.status === 'pending');
   const approved = providers.filter((p) => p.status === 'approved');
 
@@ -327,7 +340,9 @@ export function AdminPanel({ user }) {
         {approved.map((p) => (
           <div key={p.id} className="bg-white rounded-xl border border-gray-100 p-4 flex items-center justify-between">
             <div><div className="font-bold text-gray-800">{p.displayName}</div><div className="text-gray-400 text-xs">{CATEGORIES.find((c) => c.id === p.category)?.name || p.category}</div></div>
-            <div className="flex gap-3">
+            <div className="flex gap-3 items-center">
+              {p.manualRating != null && <span className="text-xs text-amber-500 font-bold flex items-center gap-0.5"><Star className="w-3 h-3 fill-current" />{Number(p.manualRating).toFixed(1)} ({p.manualReviewCount || 0})</span>}
+              <button onClick={() => editRating(p)} className="text-xs text-gray-400 hover:text-amber-600">דירוג</button>
               <button onClick={() => setStatus(p.id, 'pending')} className="text-xs text-gray-400 hover:text-amber-600">השהה</button>
               <button onClick={() => removeProvider(p.id, p.displayName)} className="text-xs text-gray-400 hover:text-red-600">הסר</button>
             </div>

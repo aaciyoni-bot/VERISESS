@@ -259,10 +259,14 @@ const Marketplace = ({ onSelectExpert, user, initialCategory = 'all', initialSos
   }, []);
   const ratingMap = {};
   reviews.forEach((r) => { (ratingMap[r.providerId] = ratingMap[r.providerId] || []).push(Number(r.rating) || 0); });
-  const ratingOf = (id, fallback) => {
-    const arr = ratingMap[id];
-    if (!arr || !arr.length) return { val: fallback, count: 0 };
-    return { val: (arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(1), count: arr.length };
+  const ratingOf = (expert) => {
+    // עדיפות לעריכה ידנית של הבעלים
+    if (expert.manualRating != null && expert.manualRating !== '') {
+      return { val: Number(expert.manualRating).toFixed(1), count: Number(expert.manualReviewCount) || 0 };
+    }
+    const arr = ratingMap[expert.id];
+    if (arr && arr.length) return { val: (arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(1), count: arr.length };
+    return { val: expert.rating || '5.0', count: 0 };
   };
 
   const filteredExperts = experts.filter(expert => {
@@ -354,7 +358,7 @@ const Marketplace = ({ onSelectExpert, user, initialCategory = 'all', initialSos
                     <h3 className="font-bold text-gray-900 text-lg flex items-center gap-1">{expert.displayName}<ShieldCheck className="w-4 h-4 text-teal-500" title="פרופיל מאומת" />{expert.introVideoUrl && <Video className="w-4 h-4 text-rose-400" title="וידאו היכרות" />}</h3>
                     <p className="text-gray-500 text-sm mb-2">{categories.find(c => c.id === expert.category)?.name}</p>
                     <div className="flex items-center gap-3 text-sm text-gray-600">
-                      <div className="flex items-center gap-1 font-medium text-amber-500"><Star className="w-4 h-4 fill-current" /> {ratingOf(expert.id, expert.rating).val}{ratingOf(expert.id).count > 0 && <span className="text-gray-400 font-normal">({ratingOf(expert.id).count})</span>}</div>
+                      <div className="flex items-center gap-1 font-medium text-amber-500"><Star className="w-4 h-4 fill-current" /> {(() => { const r = ratingOf(expert); return <>{r.val}{r.count > 0 && <span className="text-gray-400 font-normal">({r.count})</span>}</>; })()}</div>
                       <div className="flex items-center gap-1"><Clock className="w-4 h-4" /> 45 דק'</div>
                     </div>
                   </div>
@@ -407,15 +411,6 @@ const ProviderDashboard = ({ user, onRegister, onEnterRoom }) => {
     if (text === null) return;
     try { await updateDoc(doc(db, 'bookings', b.id), { summary: text.trim(), summaryAt: Date.now() }); }
     catch (e) { alert('שמירת הסיכום נכשלה: ' + (e?.code || e?.message)); }
-  };
-
-  const rateClient = async (b) => {
-    const raw = window.prompt('דרג את הלקוח (1-5, פנימי — לא נראה ללקוח):', b.clientRating || '');
-    if (raw === null) return;
-    const n = Math.round(Number(raw));
-    if (!(n >= 1 && n <= 5)) { alert('הזן מספר בין 1 ל-5'); return; }
-    try { await updateDoc(doc(db, 'bookings', b.id), { clientRating: n }); }
-    catch (e) { alert('שמירה נכשלה: ' + (e?.code || e?.message)); }
   };
 
   const paid = bookings.filter((b) => b.status === 'paid');
@@ -486,9 +481,7 @@ const ProviderDashboard = ({ user, onRegister, onEnterRoom }) => {
             <div key={b.id} className="flex justify-between items-center border-b border-gray-50 py-2 text-sm gap-2">
               <span className="text-gray-700 flex-1 min-w-0 truncate">{b.anonymous ? '🕶️ לקוח אנונימי' : (b.clientDisplay || b.clientEmail || 'לקוח')} · {b.sessionType}</span>
               <span className="font-bold text-teal-600">₪{b.amount}</span>
-              {b.clientRating && <span className="text-xs font-bold text-amber-500 flex items-center gap-0.5 shrink-0"><Star className="w-3 h-3 fill-current" />{b.clientRating}</span>}
               {b.clientId && <button onClick={() => setChatWith({ uid: b.clientId, name: b.anonymous ? 'לקוח אנונימי' : (b.clientDisplay || 'לקוח') })} className="text-xs font-bold text-gray-500 hover:text-blue-700 px-2 shrink-0" title="צ׳אט עם הלקוח">צ׳אט</button>}
-              <button onClick={() => rateClient(b)} className="text-xs font-bold text-gray-500 hover:text-amber-600 px-2 shrink-0" title="דרג לקוח (פנימי)">דרג</button>
               <button onClick={() => summarize(b)} className="text-xs font-bold text-gray-500 hover:text-teal-600 px-2 shrink-0" title="סיכום פגישה">סכם</button>
               <button onClick={() => onEnterRoom && onEnterRoom(b)} className="bg-blue-900 hover:bg-blue-800 text-white text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 shrink-0"><Video className="w-3.5 h-3.5" /> לחדר</button>
             </div>

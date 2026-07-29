@@ -8,7 +8,7 @@ export default function ChatThread({ user, otherUid, otherName, onClose }) {
   const endRef = useRef(null);
   const tid = user && otherUid ? threadId(user.uid, otherUid) : null;
 
-  useEffect(() => { if (tid) return subscribeThread(tid, setMessages); }, [tid]);
+  useEffect(() => { if (tid && user) return subscribeThread(tid, user.uid, setMessages); }, [tid]);
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
   const submit = async (e) => {

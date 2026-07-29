@@ -6,12 +6,13 @@ import { db } from '../firebase.js';
 
 export const threadId = (a, b) => [a, b].sort().join('__');
 
-export function subscribeThread(tid, cb) {
-  if (!tid || !db) { cb([]); return () => {}; }
-  const q = query(collection(db, 'messages'), where('threadId', '==', tid));
+export function subscribeThread(tid, myUid, cb) {
+  if (!tid || !myUid || !db) { cb([]); return () => {}; }
+  // מסננים לפי participants (תואם לחוק האבטחה), ומצמצמים ל-thread בצד הלקוח
+  const q = query(collection(db, 'messages'), where('participants', 'array-contains', myUid));
   return onSnapshot(q, (s) => {
-    cb(s.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)));
-  }, () => cb([]));
+    cb(s.docs.map((d) => ({ id: d.id, ...d.data() })).filter((m) => m.threadId === tid).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)));
+  }, (e) => { console.error('[VeriSess] chat load:', e); cb([]); });
 }
 
 export async function sendChat({ tid, fromUid, participants, text }) {

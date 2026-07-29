@@ -38,7 +38,11 @@ export default function ExpertProfile({ expert, user, onBook, onBack }) {
   }, [expert]);
 
   if (!expert) return null;
-  const avg = reviews.length ? (reviews.reduce((a, r) => a + (Number(r.rating) || 0), 0) / reviews.length).toFixed(1) : expert.rating;
+  const hasManual = expert.manualRating != null && expert.manualRating !== '';
+  const avg = hasManual
+    ? Number(expert.manualRating).toFixed(1)
+    : (reviews.length ? (reviews.reduce((a, r) => a + (Number(r.rating) || 0), 0) / reviews.length).toFixed(1) : expert.rating);
+  const reviewCount = hasManual ? (Number(expert.manualReviewCount) || 0) : reviews.length;
   const sos = canSos(expert);
 
   return (
@@ -63,7 +67,7 @@ export default function ExpertProfile({ expert, user, onBook, onBack }) {
                 <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">{expert.displayName} <ShieldCheck className="w-5 h-5 text-teal-500" title="מאומת" /></h1>
                 <p className="text-gray-500">{CATEGORY_NAMES[expert.category] || expert.category}</p>
                 <div className="flex items-center gap-4 mt-2 text-sm text-gray-600">
-                  <span className="flex items-center gap-1 text-amber-500 font-bold"><Star className="w-4 h-4 fill-current" /> {avg} {reviews.length > 0 && <span className="text-gray-400 font-normal">({reviews.length})</span>}</span>
+                  <span className="flex items-center gap-1 text-amber-500 font-bold"><Star className="w-4 h-4 fill-current" /> {avg} {reviewCount > 0 && <span className="text-gray-400 font-normal">({reviewCount})</span>}</span>
                   <span className="flex items-center gap-1"><Clock className="w-4 h-4" /> 45 דק׳</span>
                 </div>
               </div>
