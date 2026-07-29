@@ -252,9 +252,14 @@ const Marketplace = ({ onSelectExpert }) => {
     return { val: (arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(1), count: arr.length };
   };
 
+  // SOS רלוונטי רק לקטגוריות שבהן ייתכן צורך במענה דחוף/מצוקה.
+  // חוגים, משחקים (D&D/פוקר) ורוחניות אינם SOS.
+  const SOS_CATEGORIES = ['psychology', 'addiction', 'law', 'sleep', 'finance'];
+  const canSos = (e) => e.isOnline === true && SOS_CATEGORIES.includes(e.category);
+
   const filteredExperts = experts.filter(expert => {
     const matchesCategory = selectedCategory === 'all' || expert.category === selectedCategory;
-    const matchesSos = sosOnly ? expert.isOnline === true : true;
+    const matchesSos = sosOnly ? canSos(expert) : true;
     return matchesCategory && matchesSos;
   });
 
@@ -321,8 +326,8 @@ const Marketplace = ({ onSelectExpert }) => {
                 </div>
                 <div className="mt-5 pt-4 border-t border-gray-100 flex items-center justify-between">
                   <div className="font-bold text-xl text-teal-600">₪{expert.rate}</div>
-                  <button onClick={() => onSelectExpert && onSelectExpert(expert, expert.isOnline ? 'sos' : 'scheduled')} className={`px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 transition-transform active:scale-95 ${expert.isOnline ? 'bg-red-500 hover:bg-red-600 text-white shadow-md shadow-red-500/20' : 'bg-blue-50 text-blue-900 hover:bg-blue-100'}`}>
-                    {expert.isOnline ? <><PhoneCall className="w-4 h-4" /> שיחת SOS</> : <><Video className="w-4 h-4" /> תאם פגישה</>}
+                  <button onClick={() => onSelectExpert && onSelectExpert(expert, canSos(expert) ? 'sos' : 'scheduled')} className={`px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 transition-transform active:scale-95 ${canSos(expert) ? 'bg-red-500 hover:bg-red-600 text-white shadow-md shadow-red-500/20' : expert.isOnline ? 'bg-teal-500 hover:bg-teal-600 text-white' : 'bg-blue-50 text-blue-900 hover:bg-blue-100'}`}>
+                    {canSos(expert) ? <><PhoneCall className="w-4 h-4" /> שיחת SOS</> : expert.isOnline ? <><Video className="w-4 h-4" /> התחל שיחה</> : <><Video className="w-4 h-4" /> תאם פגישה</>}
                   </button>
                 </div>
               </div>
