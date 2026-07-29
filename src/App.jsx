@@ -213,6 +213,7 @@ const PokerWidget = ({ isHost, mode = 'real' }) => {
 const Marketplace = ({ onSelectExpert, user }) => {
   const [favIds, setFavIds] = useState([]);
   const [favOnly, setFavOnly] = useState(false);
+  const [videoOnly, setVideoOnly] = useState(false);
   useEffect(() => subscribeFavorites(user?.uid, setFavIds), [user]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -266,7 +267,8 @@ const Marketplace = ({ onSelectExpert, user }) => {
     const matchesCategory = selectedCategory === 'all' || expert.category === selectedCategory;
     const matchesSos = sosOnly ? canSos(expert) : true;
     const matchesFav = favOnly ? favIds.includes(expert.id) : true;
-    return matchesCategory && matchesSos && matchesFav;
+    const matchesVideo = videoOnly ? !!expert.introVideoUrl : true;
+    return matchesCategory && matchesSos && matchesFav && matchesVideo;
   });
 
   return (
@@ -310,6 +312,14 @@ const Marketplace = ({ onSelectExpert, user }) => {
                 </label>
               </div>
             )}
+            <label className="flex items-center justify-between cursor-pointer mb-6 bg-gray-50 p-3 rounded-xl border border-gray-100">
+              <span className="font-bold text-gray-700 text-sm flex items-center gap-1.5"><Video className="w-4 h-4 text-teal-500" /> עם וידאו היכרות</span>
+              <div className="relative">
+                <input type="checkbox" className="sr-only" checked={videoOnly} onChange={() => setVideoOnly(!videoOnly)} />
+                <div className={`block w-10 h-6 rounded-full transition-colors ${videoOnly ? 'bg-teal-500' : 'bg-gray-300'}`}></div>
+                <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${videoOnly ? 'transform translate-x-4' : ''}`}></div>
+              </div>
+            </label>
             <h4 className="font-bold text-gray-700 text-sm mb-3">קטגוריות</h4>
             <div className="space-y-2">
               {categories.map(cat => (
@@ -339,7 +349,7 @@ const Marketplace = ({ onSelectExpert, user }) => {
                 <div className="flex gap-4">
                   <div className="w-20 h-20 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center text-3xl font-bold border border-gray-100">{expert.displayName.charAt(0)}</div>
                   <div>
-                    <h3 className="font-bold text-gray-900 text-lg flex items-center gap-1">{expert.displayName}<ShieldCheck className="w-4 h-4 text-teal-500" title="פרופיל מאומת" /></h3>
+                    <h3 className="font-bold text-gray-900 text-lg flex items-center gap-1">{expert.displayName}<ShieldCheck className="w-4 h-4 text-teal-500" title="פרופיל מאומת" />{expert.introVideoUrl && <Video className="w-4 h-4 text-rose-400" title="וידאו היכרות" />}</h3>
                     <p className="text-gray-500 text-sm mb-2">{categories.find(c => c.id === expert.category)?.name}</p>
                     <div className="flex items-center gap-3 text-sm text-gray-600">
                       <div className="flex items-center gap-1 font-medium text-amber-500"><Star className="w-4 h-4 fill-current" /> {ratingOf(expert.id, expert.rating).val}{ratingOf(expert.id).count > 0 && <span className="text-gray-400 font-normal">({ratingOf(expert.id).count})</span>}</div>

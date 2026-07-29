@@ -118,7 +118,7 @@ export function LoginScreen({ onDone, title = 'כניסה ל-VeriSess' }) {
 export function ProviderOnboarding({ user, onComplete }) {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [form, setForm] = useState({ displayName: '', category: 'psychology', rate: 300, bio: '', tags: '' });
+  const [form, setForm] = useState({ displayName: '', category: 'psychology', rate: 300, bio: '', tags: '', introVideoUrl: '' });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [agreed, setAgreed] = useState(false);
@@ -169,6 +169,7 @@ export function ProviderOnboarding({ user, onComplete }) {
         rate: Number(form.rate) || 0,
         bio: form.bio,
         tags: form.tags.split(',').map((t) => t.trim()).filter(Boolean),
+        introVideoUrl: form.introVideoUrl.trim(),
         rating: '5.0',
         isOnline: false,
         status: 'pending',
@@ -201,6 +202,7 @@ export function ProviderOnboarding({ user, onComplete }) {
           </div>
           <Field label="תיאור קצר"><textarea value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })} rows={3} maxLength={500} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-teal-500 resize-none" /></Field>
           <Field label="תגיות (מופרדות בפסיק)"><input value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} placeholder="חרדה, זוגיות" className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-teal-500" /></Field>
+          <Field label="וידאו היכרות — קישור (YouTube/Vimeo, לא חובה)"><input value={form.introVideoUrl} onChange={(e) => setForm({ ...form, introVideoUrl: e.target.value })} placeholder="https://youtu.be/..." dir="ltr" className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-teal-500 text-left" /></Field>
           <label className="flex items-start gap-2 text-xs text-gray-600 cursor-pointer bg-gray-50 border border-gray-200 rounded-xl p-3">
             <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="mt-0.5 w-4 h-4 accent-teal-600" />
             <span>אני מצהיר/ה כי אני ספק/ית עצמאי/ת האחראי/ת בלעדית לשירותיי, לרישיונותיי ולעמידה בכל דין, ומאשר/ת את <b>תנאי השימוש והתקנון</b> ואת <b>מדיניות הפרטיות</b>.</span>

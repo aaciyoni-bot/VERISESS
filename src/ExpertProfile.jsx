@@ -5,6 +5,15 @@ import { db } from './firebase.js';
 import { canSos, canAnon } from './lib/config.js';
 import { subscribeFavorites, toggleFavorite } from './lib/favorites.js';
 
+function embedUrl(url) {
+  if (!url) return null;
+  let m = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([\w-]{11})/);
+  if (m) return `https://www.youtube.com/embed/${m[1]}`;
+  m = url.match(/vimeo\.com\/(\d+)/);
+  if (m) return `https://player.vimeo.com/video/${m[1]}`;
+  return null;
+}
+
 const CATEGORY_NAMES = {
   psychology: 'פסיכולוגיה', law: 'משפט ועריכת דין', sleep: 'ייעוץ שינה והורות',
   addiction: 'גמילה', finance: 'ייעוץ פיננסי', gaming: 'חוגי משחק', mysticism: 'רוחניות ותקשור',
@@ -65,6 +74,17 @@ export default function ExpertProfile({ expert, user, onBook, onBack }) {
             </div>
 
             {expert.bio && <p className="text-gray-600 leading-relaxed mt-5">{expert.bio}</p>}
+
+            {expert.introVideoUrl && (() => {
+              const emb = embedUrl(expert.introVideoUrl);
+              return emb ? (
+                <div className="mt-5 aspect-video rounded-2xl overflow-hidden border border-gray-100 bg-black">
+                  <iframe src={emb} title="וידאו היכרות" className="w-full h-full" allow="fullscreen; picture-in-picture" allowFullScreen />
+                </div>
+              ) : (
+                <a href={expert.introVideoUrl} target="_blank" rel="noreferrer" className="mt-4 inline-flex items-center gap-2 text-teal-600 font-bold hover:underline"><Video className="w-4 h-4" /> צפה בוידאו היכרות</a>
+              );
+            })()}
 
             {Array.isArray(expert.tags) && expert.tags.length > 0 && (
               <div className="flex flex-wrap gap-2 mt-4">
