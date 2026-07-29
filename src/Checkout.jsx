@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ShieldCheck, Lock, CreditCard, Check, AlertTriangle } from 'lucide-react';
-import { collection, addDoc } from 'firebase/firestore';
+import { collection, addDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from './firebase.js';
 import { TRANZILA_CONFIGURED, buildTranzilaUrl } from './lib/config.js';
 
 // =========================================================
 // צ'קאאוט אמיתי — סליקת טרנזילה (דף מתארח ב-iframe)
 // =========================================================
-export default function Checkout({ expert, user, sessionType = 'scheduled', onCancel, onSuccess }) {
+export default function Checkout({ expert, user, sessionType = 'scheduled', slot = null, onCancel, onSuccess }) {
   const [phase, setPhase] = useState('summary'); // summary | pay | done | error
   const [error, setError] = useState('');
   const [agreed, setAgreed] = useState(false);
@@ -47,7 +47,7 @@ export default function Checkout({ expert, user, sessionType = 'scheduled', onCa
 
   async function createBooking(txData) {
     const sessionId = `sess_${Date.now()}`;
-    await addDoc(collection(db, 'bookings'), {
+    const ref = await addDoc(collection(db, 'bookings'), {
       clientId: user?.uid || 'guest',
       clientEmail: user?.email || null,
       providerId: expert?.id || null,
@@ -56,10 +56,17 @@ export default function Checkout({ expert, user, sessionType = 'scheduled', onCa
       amount,
       sessionType,
       sessionId,
+      slotStart: slot?.start || null,
+      slotISO: slot?.startISO || null,
       status: 'paid',
       tranzila: txData ? { confirmation: txData.ConfirmationCode || txData.index || null, response: txData.Response || null } : null,
       createdAt: Date.now(),
     });
+    // סימון המועד ביומן המומחה כתפוס
+    if (slot?.id && expert?.id) {
+      try { await updateDoc(doc(db, 'providers', expert.id, 'availability', slot.id), { booked: true, bookingId: ref.id }); }
+      catch (e) { console.error('[VeriSess] סימון מועד נכשל:', e); }
+    }
     return sessionId;
   }
 
@@ -78,6 +85,7 @@ export default function Checkout({ expert, user, sessionType = 'scheduled', onCa
                 {isSos && <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1"><span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" /> SOS מיידי</span>}
               </div>
               <div className="text-gray-500 text-sm">{isSos ? 'שיחה מיידית · זמין עכשיו' : 'פגישת וידאו מאובטחת · 45 דק׳'}</div>
+              {slot && <div className="text-teal-600 text-xs font-bold mt-1">מועד: {new Date(slot.start).toLocaleString('he-IL', { weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</div>}
             </div>
           </div>
           <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">

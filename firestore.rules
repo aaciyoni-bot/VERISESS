@@ -28,7 +28,9 @@ service cloud.firestore {
     }
     match /providers/{uid}/availability/{slotId} {
       allow read: if true;
-      allow write: if isOwner(uid) || isAdmin();
+      allow create, delete: if isOwner(uid) || isAdmin();
+      // לקוח מחובר יכול לסמן מועד כתפוס בעת הזמנה (פיילוט)
+      allow update: if signedIn();
     }
 
     // ---- ארנק הטוקנים (1 טוקן = 1 ₪) ----

@@ -7,6 +7,7 @@ import { collection, onSnapshot, doc, updateDoc, query, where } from 'firebase/f
 import { LoginScreen, ProviderOnboarding, AdminPanel } from './Accounts.jsx';
 import Checkout from './Checkout.jsx';
 import MySessions from './MySessions.jsx';
+import { AvailabilityManager, SlotPicker } from './Scheduling.jsx';
 import Home from './Home.jsx';
 import { Terms, Privacy, AccessibilityPage, Contact, Footer } from './Legal.jsx';
 import AccessibilityWidget from './Accessibility.jsx';
@@ -438,6 +439,9 @@ const ProviderDashboard = ({ user, onRegister }) => {
           ))}
         </div>
       </div>
+      <div className="mt-6">
+        <AvailabilityManager user={user} />
+      </div>
     </Wrap>
   );
 };
@@ -475,6 +479,7 @@ export default function App() {
   const [selectedExpertId, setSelectedExpertId] = useState(null);
   const [selectedExpert, setSelectedExpert] = useState(null);
   const [selectedSessionType, setSelectedSessionType] = useState('scheduled');
+  const [selectedSlot, setSelectedSlot] = useState(null);
   const [roomCategory, setRoomCategory] = useState('therapy');
   const [authUser, setAuthUser] = useState(null);
 
@@ -524,11 +529,12 @@ export default function App() {
 
       {currentView === 'welcome' && <Home onFindExpert={() => setCurrentView('marketplace')} onProviderSignup={() => setCurrentView('onboarding')} />}
 
-      {currentView === 'marketplace' && <Marketplace onSelectExpert={(expert, sessionType) => { setSelectedExpert(expert); setSelectedExpertId(expert?.id); setSelectedSessionType(sessionType || 'scheduled'); setRoomCategory(expert?.category === 'gaming' ? 'gaming' : 'therapy'); setCurrentView('checkout'); }} />}
+      {currentView === 'marketplace' && <Marketplace onSelectExpert={(expert, sessionType) => { setSelectedExpert(expert); setSelectedExpertId(expert?.id); setSelectedSessionType(sessionType || 'scheduled'); setRoomCategory(expert?.category === 'gaming' ? 'gaming' : 'therapy'); setSelectedSlot(null); setCurrentView(sessionType === 'sos' ? 'checkout' : 'slots'); }} />}
+      {currentView === 'slots' && <SlotPicker expert={selectedExpert} onPick={(slot) => { setSelectedSlot(slot); setCurrentView('checkout'); }} onCancel={() => setCurrentView('marketplace')} />}
       {currentView === 'login' && <LoginScreen onDone={() => setCurrentView('marketplace')} />}
       {currentView === 'onboarding' && <ProviderOnboarding user={authUser} onComplete={() => setCurrentView('dashboard')} />}
       {currentView === 'dashboard' && <ProviderDashboard user={authUser} onRegister={() => setCurrentView('onboarding')} />}
-      {currentView === 'checkout' && <Checkout expert={selectedExpert} user={authUser} sessionType={selectedSessionType} onCancel={() => setCurrentView('marketplace')} onSuccess={(sessionId) => { setTestSessionId(sessionId); setCurrentView('videoRoom'); }} />}
+      {currentView === 'checkout' && <Checkout expert={selectedExpert} user={authUser} sessionType={selectedSessionType} slot={selectedSlot} onCancel={() => setCurrentView('marketplace')} onSuccess={(sessionId) => { setTestSessionId(sessionId); setCurrentView('videoRoom'); }} />}
       {currentView === 'mySessions' && <MySessions user={authUser} onFindExpert={() => setCurrentView('marketplace')} onEnterRoom={(b) => { setTestSessionId(b.sessionId || `sess_${b.id}`); setRoomCategory(b.category === 'gaming' ? 'gaming' : 'therapy'); setCurrentView('videoRoom'); }} />}
       {currentView === 'videoRoom' && (roomCategory === 'group'
         ? <GroupRoom sessionId={testSessionId} onLeave={() => setCurrentView('mySessions')} isHost={false} />
