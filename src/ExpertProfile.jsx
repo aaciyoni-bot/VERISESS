@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { ShieldCheck, Star, Clock, PhoneCall, Video, ChevronRight, MessageSquare } from 'lucide-react';
+import { ShieldCheck, Star, Clock, PhoneCall, Video, ChevronRight, MessageSquare, EyeOff, X, Lock } from 'lucide-react';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from './firebase.js';
-import { canSos } from './lib/config.js';
+import { canSos, canAnon } from './lib/config.js';
 
 const CATEGORY_NAMES = {
   psychology: 'פסיכולוגיה', law: 'משפט ועריכת דין', sleep: 'ייעוץ שינה והורות',
@@ -11,6 +11,8 @@ const CATEGORY_NAMES = {
 
 export default function ExpertProfile({ expert, onBook, onBack }) {
   const [reviews, setReviews] = useState([]);
+  const [anon, setAnon] = useState(false);
+  const [showAnonInfo, setShowAnonInfo] = useState(false);
 
   useEffect(() => {
     if (!expert?.id || !db) return;
@@ -60,14 +62,33 @@ export default function ExpertProfile({ expert, onBook, onBack }) {
               </div>
             )}
 
+            {/* מצב אנונימי — רק בקטגוריות רגישות */}
+            {canAnon(expert) && (
+              <button
+                onClick={() => { if (!anon) setShowAnonInfo(true); else setAnon(false); }}
+                className={`w-full mt-6 flex items-center justify-between gap-3 rounded-2xl border p-4 transition-colors text-right ${anon ? 'bg-blue-900 border-blue-900 text-white' : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100'}`}
+              >
+                <span className="flex items-center gap-3">
+                  <EyeOff className={`w-5 h-5 ${anon ? 'text-teal-300' : 'text-gray-400'}`} />
+                  <span>
+                    <span className="block font-bold text-sm">ייעוץ במצב אנונימי</span>
+                    <span className={`block text-xs ${anon ? 'text-blue-200' : 'text-gray-500'}`}>{anon ? 'מופעל — המומחה לא יראה את זהותך' : 'המומחה לא יראה את שמך ופרטיך'}</span>
+                  </span>
+                </span>
+                <span className={`w-11 h-6 rounded-full relative transition-colors shrink-0 ${anon ? 'bg-teal-400' : 'bg-gray-300'}`}>
+                  <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition-all ${anon ? 'right-0.5' : 'right-[22px]'}`} />
+                </span>
+              </button>
+            )}
+
             {/* כפתורי הזמנה */}
-            <div className="flex flex-col sm:flex-row gap-3 mt-7">
+            <div className="flex flex-col sm:flex-row gap-3 mt-4">
               {sos ? (
-                <button onClick={() => onBook('sos')} className="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 shadow-md shadow-red-500/20"><PhoneCall className="w-5 h-5" /> שיחת SOS מיידית (+30%)</button>
+                <button onClick={() => onBook('sos', anon)} className="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 shadow-md shadow-red-500/20"><PhoneCall className="w-5 h-5" /> שיחת SOS מיידית (+30%)</button>
               ) : expert.isOnline ? (
-                <button onClick={() => onBook('scheduled')} className="flex-1 bg-teal-500 hover:bg-teal-600 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2"><Video className="w-5 h-5" /> התחל שיחה</button>
+                <button onClick={() => onBook('scheduled', anon)} className="flex-1 bg-teal-500 hover:bg-teal-600 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2"><Video className="w-5 h-5" /> התחל שיחה</button>
               ) : (
-                <button onClick={() => onBook('scheduled')} className="flex-1 bg-blue-900 hover:bg-blue-800 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2"><Video className="w-5 h-5" /> תאם פגישה</button>
+                <button onClick={() => onBook('scheduled', anon)} className="flex-1 bg-blue-900 hover:bg-blue-800 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2"><Video className="w-5 h-5" /> תאם פגישה</button>
               )}
             </div>
           </div>
@@ -92,6 +113,27 @@ export default function ExpertProfile({ expert, onBook, onBack }) {
           )}
         </div>
       </div>
+
+      {/* מודל הסבר — נפתח בהפעלת מצב אנונימי */}
+      {showAnonInfo && (
+        <div className="fixed inset-0 bg-black/50 z-[9990] flex items-center justify-center p-4" onClick={() => setShowAnonInfo(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-bold flex items-center gap-2"><EyeOff className="w-5 h-5 text-blue-900" /> מצב אנונימי — איך זה עובד</h3>
+              <button onClick={() => setShowAnonInfo(false)} aria-label="סגירה" className="text-gray-400 hover:text-gray-700"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="space-y-3 text-sm text-gray-600 leading-relaxed">
+              <p className="flex gap-2"><ShieldCheck className="w-5 h-5 text-teal-500 shrink-0" /> <span><b>כלפי המומחה — אנונימי לחלוטין.</b> המומחה לא יראה את שמך, האימייל שלך או פרטי ההרשמה — רק כינוי כללי ("לקוח אנונימי").</span></p>
+              <p className="flex gap-2"><Lock className="w-5 h-5 text-amber-500 shrink-0" /> <span><b>שקיפות מלאה:</b> מנהל האתר עדיין נחשף לפרטים שמסרת בהרשמה ולאמצעי התשלום — זה הכרחי לתפעול, לסליקה ולמניעת הונאות. האנונימיות אינה כלפי הפלטפורמה, אלא כלפי המומחה בלבד.</span></p>
+              <p className="text-gray-400 text-xs">שיחת הווידאו והצ׳אט מוצפנים מקצה לקצה בכל מקרה.</p>
+            </div>
+            <div className="flex gap-2 mt-6">
+              <button onClick={() => { setAnon(true); setShowAnonInfo(false); }} className="flex-1 bg-blue-900 hover:bg-blue-800 text-white font-bold py-3 rounded-xl">הפעל מצב אנונימי</button>
+              <button onClick={() => setShowAnonInfo(false)} className="px-5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3 rounded-xl">ביטול</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

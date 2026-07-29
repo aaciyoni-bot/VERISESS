@@ -17,6 +17,10 @@ export const PLATFORM_FEE = 0.15; // 15%
 export const SOS_CATEGORIES = ['psychology', 'addiction', 'law', 'sleep', 'finance'];
 export const canSos = (e) => !!e && e.isOnline === true && SOS_CATEGORIES.includes(e.category);
 export const SOS_PREMIUM = 0.30; // פרמיית זמינות מיידית
+
+// מצב אנונימי — זמין בקטגוריות רגישות בלבד (המומחה לא רואה את זהות הלקוח).
+export const ANON_CATEGORIES = ['law', 'psychology', 'addiction', 'finance', 'mysticism'];
+export const canAnon = (e) => !!e && ANON_CATEGORIES.includes(e.category);
 export const providerNet = (gross) => Math.round((Number(gross) || 0) * (1 - PLATFORM_FEE));
 export const platformCut = (gross) => Math.round((Number(gross) || 0) * PLATFORM_FEE);
 

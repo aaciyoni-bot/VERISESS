@@ -72,7 +72,7 @@ export function LoginScreen({ onDone, title = 'כניסה ל-VeriSess' }) {
             {mode === 'signup' && (
               <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3">
                 <User className="w-4 h-4 text-gray-400" />
-                <input value={name} onChange={(e) => setName(e.target.value)} placeholder="שם מלא" className="flex-1 bg-transparent py-3 outline-none text-sm" />
+                <input value={name} onChange={(e) => setName(e.target.value)} placeholder="שם מלא" required maxLength={60} className="flex-1 bg-transparent py-3 outline-none text-sm" />
               </div>
             )}
             <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3">
@@ -146,6 +146,8 @@ export function ProviderOnboarding({ user, onComplete }) {
 
   const submit = async (e) => {
     e.preventDefault();
+    if (!form.displayName.trim()) { setErr('יש להזין שם לתצוגה'); return; }
+    if (!(Number(form.rate) > 0)) { setErr('יש להזין תעריף חוקי (גדול מ-0)'); return; }
     if (!agreed) { setErr('יש לאשר את תנאי השימוש כדי להצטרף'); return; }
     setBusy(true); setErr('');
     try {
@@ -176,16 +178,16 @@ export function ProviderOnboarding({ user, onComplete }) {
           <p className="text-blue-200 text-xs mt-1">הפרופיל יעבור אישור לפני שיופיע בקטלוג</p>
         </div>
         <form onSubmit={submit} className="p-6 space-y-4">
-          <Field label="שם לתצוגה"><input required value={form.displayName} onChange={(e) => setForm({ ...form, displayName: e.target.value })} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-teal-500" /></Field>
+          <Field label="שם לתצוגה"><input required maxLength={60} value={form.displayName} onChange={(e) => setForm({ ...form, displayName: e.target.value })} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-teal-500" /></Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label="תחום">
               <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-teal-500">
                 {CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </Field>
-            <Field label="תעריף לשעה (₪)"><input type="number" min="0" value={form.rate} onChange={(e) => setForm({ ...form, rate: e.target.value })} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-teal-500" /></Field>
+            <Field label="תעריף לשעה (₪)"><input type="number" min="1" max="10000" required value={form.rate} onChange={(e) => setForm({ ...form, rate: e.target.value })} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-teal-500" /></Field>
           </div>
-          <Field label="תיאור קצר"><textarea value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })} rows={3} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-teal-500 resize-none" /></Field>
+          <Field label="תיאור קצר"><textarea value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })} rows={3} maxLength={500} className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-teal-500 resize-none" /></Field>
           <Field label="תגיות (מופרדות בפסיק)"><input value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} placeholder="חרדה, זוגיות" className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-teal-500" /></Field>
           <label className="flex items-start gap-2 text-xs text-gray-600 cursor-pointer bg-gray-50 border border-gray-200 rounded-xl p-3">
             <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="mt-0.5 w-4 h-4 accent-teal-600" />

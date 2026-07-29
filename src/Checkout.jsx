@@ -8,7 +8,7 @@ import { createNotification } from './lib/notify.js';
 // =========================================================
 // צ'קאאוט אמיתי — סליקת טרנזילה (דף מתארח ב-iframe)
 // =========================================================
-export default function Checkout({ expert, user, sessionType = 'scheduled', slot = null, onCancel, onSuccess }) {
+export default function Checkout({ expert, user, sessionType = 'scheduled', slot = null, anonymous = false, onCancel, onSuccess }) {
   const [phase, setPhase] = useState('summary'); // summary | pay | done | error
   const [error, setError] = useState('');
   const [agreed, setAgreed] = useState(false);
@@ -50,7 +50,9 @@ export default function Checkout({ expert, user, sessionType = 'scheduled', slot
     const sessionId = `sess_${Date.now()}`;
     const ref = await addDoc(collection(db, 'bookings'), {
       clientId: user?.uid || 'guest',
-      clientEmail: user?.email || null,
+      clientEmail: anonymous ? null : (user?.email || null),
+      clientDisplay: anonymous ? 'לקוח אנונימי' : (user?.email || 'לקוח'),
+      anonymous: !!anonymous,
       providerId: expert?.id || null,
       providerName: expert?.displayName || '',
       category: expert?.category || null,
@@ -74,7 +76,7 @@ export default function Checkout({ expert, user, sessionType = 'scheduled', slot
         uid: expert.id,
         type: isSos ? 'sos' : 'booking',
         title: isSos ? 'לקוח ממתין ב-SOS 🔴' : 'פגישה חדשה נקבעה',
-        body: `${user?.email || 'לקוח'} · ₪${amount}${slot ? ' · ' + new Date(slot.start).toLocaleString('he-IL', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : ''}`,
+        body: `${anonymous ? 'לקוח אנונימי' : (user?.email || 'לקוח')} · ₪${amount}${slot ? ' · ' + new Date(slot.start).toLocaleString('he-IL', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : ''}`,
         link: 'dashboard',
       });
     }
