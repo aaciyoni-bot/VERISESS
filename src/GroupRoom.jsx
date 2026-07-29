@@ -275,9 +275,9 @@ export default function GroupRoom({ sessionId, onLeave, isHost = true }) {
   };
 
   return (
-    <div className="max-w-7xl mx-auto my-4 bg-gray-900 rounded-2xl overflow-hidden shadow-2xl h-[85vh] flex relative border border-gray-800" dir="rtl">
+    <div className="max-w-7xl mx-auto my-2 md:my-4 bg-gray-900 rounded-2xl overflow-hidden shadow-2xl h-[88vh] flex flex-col md:flex-row relative border border-gray-800" dir="rtl">
       
-      <div className="flex-1 relative bg-black flex flex-col overflow-hidden">
+      <div className="flex-1 min-h-[280px] relative bg-black flex flex-col overflow-hidden">
         
         <div className="absolute top-0 left-0 w-full p-4 flex justify-between items-start z-20 bg-gradient-to-b from-black/80 to-transparent pointer-events-none">
           <div className="flex gap-2 pointer-events-auto">
@@ -343,7 +343,7 @@ export default function GroupRoom({ sessionId, onLeave, isHost = true }) {
         </div>
       </div>
 
-      <div className="w-96 bg-gray-50 flex flex-col z-20 border-l border-gray-200">
+      <div className="w-full md:w-96 flex-1 md:flex-none min-h-0 bg-gray-50 flex flex-col z-20 border-t md:border-t-0 md:border-l border-gray-200">
         
         <div className="flex bg-white border-b border-gray-200 p-2 gap-1 relative">
           <button onClick={() => setActiveTab('participants')} className={`flex-1 py-2 text-sm font-bold rounded-lg transition-colors flex items-center justify-center gap-1.5 ${activeTab === 'participants' ? 'bg-blue-50 text-blue-700' : 'text-gray-500 hover:bg-gray-50'}`}>

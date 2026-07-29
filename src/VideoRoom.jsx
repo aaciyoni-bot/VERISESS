@@ -337,10 +337,10 @@ export default function VideoRoom({ sessionId, onLeave, isProvider = true, categ
   );
 
   return (
-    <div className="max-w-7xl mx-auto my-4 bg-gray-900 rounded-2xl overflow-hidden shadow-2xl h-[85vh] flex relative border border-gray-800" dir="rtl">
+    <div className="max-w-7xl mx-auto my-2 md:my-4 bg-gray-900 rounded-2xl overflow-hidden shadow-2xl h-[88vh] flex flex-col md:flex-row relative border border-gray-800" dir="rtl">
       
       {/* אזור הוידאו המרכזי */}
-      <div className="flex-1 relative bg-black flex items-center justify-center overflow-hidden">
+      <div className="flex-1 min-h-[280px] relative bg-black flex items-center justify-center overflow-hidden">
         <div className="absolute top-4 left-4 z-30 flex items-center gap-2">
           <div className="bg-black/60 text-white px-4 py-2 rounded-lg backdrop-blur-sm flex items-center gap-2 border border-gray-700">
             <Clock className="w-4 h-4 text-teal-400" /> 44:59
@@ -371,7 +371,7 @@ export default function VideoRoom({ sessionId, onLeave, isProvider = true, categ
       </div>
 
       {/* פאנל ווידג'טים ימני */}
-      <div className="w-[450px] bg-gray-50 flex flex-col z-20 border-l border-gray-200">
+      <div className="w-full md:w-[450px] flex-1 md:flex-none min-h-0 bg-gray-50 flex flex-col z-20 border-t md:border-t-0 md:border-l border-gray-200">
         
         {/* שורת טאבים */}
         <div className="flex flex-wrap bg-white border-b border-gray-200 p-1">
