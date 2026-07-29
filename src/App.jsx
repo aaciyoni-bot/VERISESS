@@ -321,7 +321,7 @@ const Marketplace = ({ onSelectExpert }) => {
                 </div>
                 <div className="mt-5 pt-4 border-t border-gray-100 flex items-center justify-between">
                   <div className="font-bold text-xl text-teal-600">₪{expert.rate}</div>
-                  <button onClick={() => onSelectExpert && onSelectExpert(expert)} className={`px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 transition-transform active:scale-95 ${expert.isOnline ? 'bg-red-500 hover:bg-red-600 text-white shadow-md shadow-red-500/20' : 'bg-blue-50 text-blue-900 hover:bg-blue-100'}`}>
+                  <button onClick={() => onSelectExpert && onSelectExpert(expert, expert.isOnline ? 'sos' : 'scheduled')} className={`px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 transition-transform active:scale-95 ${expert.isOnline ? 'bg-red-500 hover:bg-red-600 text-white shadow-md shadow-red-500/20' : 'bg-blue-50 text-blue-900 hover:bg-blue-100'}`}>
                     {expert.isOnline ? <><PhoneCall className="w-4 h-4" /> שיחת SOS</> : <><Video className="w-4 h-4" /> תאם פגישה</>}
                   </button>
                 </div>
@@ -469,6 +469,7 @@ export default function App() {
   const [testSessionId, setTestSessionId] = useState(`sess_${Date.now()}`);
   const [selectedExpertId, setSelectedExpertId] = useState(null);
   const [selectedExpert, setSelectedExpert] = useState(null);
+  const [selectedSessionType, setSelectedSessionType] = useState('scheduled');
   const [roomCategory, setRoomCategory] = useState('therapy');
   const [authUser, setAuthUser] = useState(null);
 
@@ -518,11 +519,11 @@ export default function App() {
 
       {currentView === 'welcome' && <Home onFindExpert={() => setCurrentView('marketplace')} onProviderSignup={() => setCurrentView('onboarding')} />}
 
-      {currentView === 'marketplace' && <Marketplace onSelectExpert={(expert) => { setSelectedExpert(expert); setSelectedExpertId(expert?.id); setRoomCategory(expert?.category === 'gaming' ? 'gaming' : 'therapy'); setCurrentView('checkout'); }} />}
+      {currentView === 'marketplace' && <Marketplace onSelectExpert={(expert, sessionType) => { setSelectedExpert(expert); setSelectedExpertId(expert?.id); setSelectedSessionType(sessionType || 'scheduled'); setRoomCategory(expert?.category === 'gaming' ? 'gaming' : 'therapy'); setCurrentView('checkout'); }} />}
       {currentView === 'login' && <LoginScreen onDone={() => setCurrentView('marketplace')} />}
       {currentView === 'onboarding' && <ProviderOnboarding user={authUser} onComplete={() => setCurrentView('dashboard')} />}
       {currentView === 'dashboard' && <ProviderDashboard user={authUser} onRegister={() => setCurrentView('onboarding')} />}
-      {currentView === 'checkout' && <Checkout expert={selectedExpert} user={authUser} onCancel={() => setCurrentView('marketplace')} onSuccess={(sessionId) => { setTestSessionId(sessionId); setCurrentView('videoRoom'); }} />}
+      {currentView === 'checkout' && <Checkout expert={selectedExpert} user={authUser} sessionType={selectedSessionType} onCancel={() => setCurrentView('marketplace')} onSuccess={(sessionId) => { setTestSessionId(sessionId); setCurrentView('videoRoom'); }} />}
       {currentView === 'mySessions' && <MySessions user={authUser} onFindExpert={() => setCurrentView('marketplace')} onEnterRoom={(b) => { setTestSessionId(b.sessionId || `sess_${b.id}`); setRoomCategory(b.category === 'gaming' ? 'gaming' : 'therapy'); setCurrentView('videoRoom'); }} />}
       {currentView === 'videoRoom' && (roomCategory === 'group'
         ? <GroupRoom sessionId={testSessionId} onLeave={() => setCurrentView('mySessions')} isHost={false} />

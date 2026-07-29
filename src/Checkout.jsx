@@ -13,7 +13,9 @@ export default function Checkout({ expert, user, sessionType = 'scheduled', onCa
   const [agreed, setAgreed] = useState(false);
   const processedRef = useRef(false);
 
-  const amount = Number(expert?.rate) || 0;
+  const baseRate = Number(expert?.rate) || 0;
+  const isSos = sessionType === 'sos';
+  const amount = isSos ? Math.round(baseRate * 1.3) : baseRate;
   const returnUrl = typeof window !== 'undefined' ? `${window.location.origin}/tranzila-return.html` : '';
 
   // מאזין להודעת ההצלחה מדף החזרה של טרנזילה (postMessage)
@@ -71,13 +73,24 @@ export default function Checkout({ expert, user, sessionType = 'scheduled', onCa
               {(expert?.displayName || '?').charAt(0)}
             </div>
             <div>
-              <div className="font-bold text-gray-900">{expert?.displayName || 'מומחה'}</div>
-              <div className="text-gray-500 text-sm">פגישת וידאו מאובטחת · 45 דק'</div>
+              <div className="font-bold text-gray-900 flex items-center gap-2">
+                {expert?.displayName || 'מומחה'}
+                {isSos && <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1"><span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" /> SOS מיידי</span>}
+              </div>
+              <div className="text-gray-500 text-sm">{isSos ? 'שיחה מיידית · זמין עכשיו' : 'פגישת וידאו מאובטחת · 45 דק׳'}</div>
             </div>
           </div>
-          <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 flex justify-between items-center">
-            <span className="font-bold text-gray-700">סכום לתשלום:</span>
-            <span className="font-black text-2xl text-blue-900">₪{amount}</span>
+          <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+            {isSos && (
+              <div className="flex justify-between items-center text-sm text-gray-500 mb-2 pb-2 border-b border-gray-200">
+                <span>תעריף בסיס + פרמיית זמינות (30%)</span>
+                <span>₪{baseRate} + ₪{amount - baseRate}</span>
+              </div>
+            )}
+            <div className="flex justify-between items-center">
+              <span className="font-bold text-gray-700">סכום לתשלום:</span>
+              <span className="font-black text-2xl text-blue-900">₪{amount}</span>
+            </div>
           </div>
           {!TRANZILA_CONFIGURED ? (
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-center">
