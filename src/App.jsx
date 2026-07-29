@@ -6,6 +6,7 @@ import { signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 import { collection, onSnapshot, doc, updateDoc, query, where } from 'firebase/firestore';
 import { LoginScreen, ProviderOnboarding, AdminPanel } from './Accounts.jsx';
 import Checkout from './Checkout.jsx';
+import MySessions from './MySessions.jsx';
 import Home from './Home.jsx';
 import { Terms, Privacy, AccessibilityPage, Contact, Footer } from './Legal.jsx';
 import AccessibilityWidget from './Accessibility.jsx';
@@ -236,6 +237,21 @@ const Marketplace = ({ onSelectExpert }) => {
     return () => unsub();
   }, []);
 
+  // דירוגים אמיתיים — ממוצע מתוך אוסף reviews
+  const [reviews, setReviews] = useState([]);
+  useEffect(() => {
+    if (!db) return;
+    const unsub = onSnapshot(collection(db, 'reviews'), (snap) => setReviews(snap.docs.map((d) => d.data())), () => {});
+    return () => unsub();
+  }, []);
+  const ratingMap = {};
+  reviews.forEach((r) => { (ratingMap[r.providerId] = ratingMap[r.providerId] || []).push(Number(r.rating) || 0); });
+  const ratingOf = (id, fallback) => {
+    const arr = ratingMap[id];
+    if (!arr || !arr.length) return { val: fallback, count: 0 };
+    return { val: (arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(1), count: arr.length };
+  };
+
   const filteredExperts = experts.filter(expert => {
     const matchesCategory = selectedCategory === 'all' || expert.category === selectedCategory;
     const matchesSos = sosOnly ? expert.isOnline === true : true;
@@ -298,7 +314,7 @@ const Marketplace = ({ onSelectExpert }) => {
                     <h3 className="font-bold text-gray-900 text-lg flex items-center gap-1">{expert.displayName}<ShieldCheck className="w-4 h-4 text-teal-500" title="פרופיל מאומת" /></h3>
                     <p className="text-gray-500 text-sm mb-2">{categories.find(c => c.id === expert.category)?.name}</p>
                     <div className="flex items-center gap-3 text-sm text-gray-600">
-                      <div className="flex items-center gap-1 font-medium text-amber-500"><Star className="w-4 h-4 fill-current" /> {expert.rating}</div>
+                      <div className="flex items-center gap-1 font-medium text-amber-500"><Star className="w-4 h-4 fill-current" /> {ratingOf(expert.id, expert.rating).val}{ratingOf(expert.id).count > 0 && <span className="text-gray-400 font-normal">({ratingOf(expert.id).count})</span>}</div>
                       <div className="flex items-center gap-1"><Clock className="w-4 h-4" /> 45 דק'</div>
                     </div>
                   </div>
@@ -476,6 +492,9 @@ export default function App() {
         <button onClick={() => setCurrentView('marketplace')} className="text-sm font-bold text-teal-600 bg-teal-50 hover:bg-teal-100 px-4 py-2 rounded-lg transition-colors">
           חיפוש מומחה
         </button>
+        {authUser && (
+          <button onClick={() => setCurrentView('mySessions')} className="text-sm font-bold text-gray-600 hover:text-blue-900 px-3 py-2">הפגישות שלי</button>
+        )}
         {isAdminUser(authUser) && (
           <button onClick={() => setCurrentView('admin')} className="text-sm font-bold text-red-600 hover:text-red-700 px-3 py-2">אדמין</button>
         )}
@@ -504,9 +523,10 @@ export default function App() {
       {currentView === 'onboarding' && <ProviderOnboarding user={authUser} onComplete={() => setCurrentView('dashboard')} />}
       {currentView === 'dashboard' && <ProviderDashboard user={authUser} onRegister={() => setCurrentView('onboarding')} />}
       {currentView === 'checkout' && <Checkout expert={selectedExpert} user={authUser} onCancel={() => setCurrentView('marketplace')} onSuccess={(sessionId) => { setTestSessionId(sessionId); setCurrentView('videoRoom'); }} />}
+      {currentView === 'mySessions' && <MySessions user={authUser} onFindExpert={() => setCurrentView('marketplace')} onEnterRoom={(b) => { setTestSessionId(b.sessionId || `sess_${b.id}`); setRoomCategory(b.category === 'gaming' ? 'gaming' : 'therapy'); setCurrentView('videoRoom'); }} />}
       {currentView === 'videoRoom' && (roomCategory === 'group'
-        ? <GroupRoom sessionId={testSessionId} onLeave={() => setCurrentView('welcome')} isHost={false} />
-        : <VideoRoom sessionId={testSessionId} onLeave={() => setCurrentView('welcome')} isProvider={false} category={roomCategory} />)}
+        ? <GroupRoom sessionId={testSessionId} onLeave={() => setCurrentView('mySessions')} isHost={false} />
+        : <VideoRoom sessionId={testSessionId} onLeave={() => setCurrentView('mySessions')} isProvider={false} category={roomCategory} />)}
       {currentView === 'admin' && <AdminPanel user={authUser} />}
       {currentView === 'poker_lobby' && <PokerLobby />}
       {currentView === 'terms' && <Terms />}
